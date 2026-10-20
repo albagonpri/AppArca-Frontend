@@ -326,6 +326,12 @@ body {
   border: 1px solid #BBF7D0;
 }
 
+.mensaje-aviso {
+  background-color: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FDE68A;
+}
+
 .mensaje-info {
   background-color: #EFF6FF;
   color: var(--color-primary);
@@ -1541,4 +1547,137 @@ body {
   background-color: #F0FDF4;
   border: 1px solid #BBF7D0;
   color: #16A34A;
+}
+
+/* ============================================================
+   MAPA DE UBICACIÓN (Leaflet) — Geolocalización de plazas
+   ============================================================ */
+
+/* Importar estilos base de Leaflet */
+
+.mapa-ubicacion-wrapper {
+  position: relative;
+}
+
+/* Bloque del mapa en el formulario de plaza */
+.plaza-mapa-seccion {
+  margin-top: var(--spacing-md);
+}
+
+.plaza-mapa-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-main);
+  margin-bottom: var(--spacing-xs);
+  display: block;
+}
+
+.plaza-mapa-hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Barra de acciones de geocodificación */
+.plaza-geo-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: flex-start;
+  margin-top: var(--spacing-sm);
+}
+
+/* Estado de la ubicación (confirmada / pendiente) */
+.plaza-ubicacion-estado {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  margin-top: var(--spacing-sm);
+}
+
+.plaza-ubicacion-estado.confirmada {
+  background-color: #F0FDF4;
+  border: 1px solid #86EFAC;
+  color: #15803D;
+}
+
+.plaza-ubicacion-estado.pendiente {
+  background-color: #FEF3C7;
+  border: 1px solid #FCD34D;
+  color: #92400E;
+}
+
+.plaza-ubicacion-estado.sin-ubicacion {
+  background-color: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #DC2626;
+}
+
+/* Lista de candidatos CartoCiudad */
+.plaza-candidatos-lista {
+  list-style: none;
+  padding: 0;
+  margin: var(--spacing-sm) 0 0;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.plaza-candidatos-lista li {
+  display: block;
+}
+
+.plaza-candidato-btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.85rem;
+  background: var(--color-surface);
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  transition: background-color 0.12s ease;
+  font-family: inherit;
+}
+
+.plaza-candidato-btn:last-child {
+  border-bottom: none;
+}
+
+.plaza-candidato-btn:hover {
+  background-color: #F0F9FF;
+  color: var(--color-primary-hover);
+}
+
+.plaza-candidato-btn.seleccionado {
+  background-color: #E0F2FE;
+  font-weight: 600;
+}
+
+.plaza-candidato-fuente {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-left: 0.4rem;
+}
+
+/* Mensaje informativo del mapa */
+.plaza-mapa-info {
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* Coordenadas mostradas bajo el mapa */
+.plaza-coords-display {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-family: monospace;
 }

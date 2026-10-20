@@ -61,6 +61,7 @@ export interface Plaza {
   titulo: string;
   descripcion: string;
   direccion: string;
+  poblacion?: string | null;
   latitud: number;
   longitud: number;
   precioHora: number;
@@ -83,7 +84,11 @@ export interface CrearPlazaDto {
   numero: string;
   codigoPostal: string;
   ciudad: string;
+  poblacion?: string;
   provincia?: string;
+  /** Coordenadas confirmadas por el usuario en el mapa. Si se envían, el backend las prioriza sobre CartoCiudad. */
+  latitud?: number;
+  longitud?: number;
   precioHora: number;
   largo: number;
   ancho: number;
@@ -101,7 +106,11 @@ export interface ActualizarPlazaDto {
   numero?: string;
   codigoPostal?: string;
   ciudad?: string;
+  poblacion?: string;
   provincia?: string;
+  /** Coordenadas confirmadas por el usuario en el mapa al modificar la dirección. */
+  latitud?: number;
+  longitud?: number;
   precioHora?: number;
   largo?: number;
   ancho?: number;
