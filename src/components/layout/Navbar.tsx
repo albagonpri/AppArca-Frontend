@@ -16,7 +16,7 @@ export const Navbar: React.FC = () => {
         </NavLink>
 
         {autenticado ? (
-          <ul className="navbar-links nav-4-items">
+          <ul className="navbar-links nav-5-items">
             <li>
               <NavLink
                 to="/"
@@ -31,7 +31,7 @@ export const Navbar: React.FC = () => {
                 to="/mi-plaza"
                 className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
               >
-                Mi plaza
+                Mis plazas
               </NavLink>
             </li>
             <li>
@@ -39,7 +39,15 @@ export const Navbar: React.FC = () => {
                 to="/mis-reservas"
                 className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
               >
-                Mis Reservas
+                Mis reservas
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/mis-vehiculos"
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              >
+                Mis vehículos
               </NavLink>
             </li>
             <li>

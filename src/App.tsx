@@ -4,6 +4,7 @@ import { Navbar } from './components/layout/Navbar';
 import { Inicio } from './pages/Inicio';
 import { MiPlaza } from './pages/MiPlaza';
 import { MisReservas } from './pages/MisReservas';
+import { MisVehiculos } from './pages/MisVehiculos';
 import { MiPerfil } from './pages/MiPerfil';
 import { IniciarSesion } from './pages/IniciarSesion';
 import { Registro } from './pages/Registro';
@@ -76,6 +77,14 @@ export const App: React.FC = () => {
                 element={
                   <RutaProtegida>
                     <MisReservas />
+                  </RutaProtegida>
+                }
+              />
+              <Route
+                path="/mis-vehiculos"
+                element={
+                  <RutaProtegida>
+                    <MisVehiculos />
                   </RutaProtegida>
                 }
               />

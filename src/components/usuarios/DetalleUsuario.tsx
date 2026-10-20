@@ -37,8 +37,8 @@ export const DetalleUsuario: React.FC<Props> = ({ usuarioId, onCerrar }) => {
 
         if (activo) {
           setUsuario(usuarioData);
-          setPlazas(plazasData);
-          setReservas(reservasData);
+          setPlazas(plazasData.data);
+          setReservas(reservasData.data);
         }
       } catch (err: unknown) {
         if (activo) {
