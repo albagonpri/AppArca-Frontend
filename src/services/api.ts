@@ -17,6 +17,17 @@ export async function manejarRespuesta<T>(respuesta: Response): Promise<T> {
     } catch {
       // Si la respuesta no es JSON, mantenemos el mensaje de estado HTTP
     }
+
+    if (respuesta.status === 401) {
+      try {
+        localStorage.removeItem('apparca_token');
+        localStorage.removeItem('apparca_usuario');
+        window.dispatchEvent(new Event('apparca_auth_change'));
+      } catch {
+        // Ignorar en entornos sin window/localStorage
+      }
+    }
+
     throw new Error(mensajeError);
   }
 

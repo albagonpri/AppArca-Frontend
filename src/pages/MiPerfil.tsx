@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Usuario } from '../models/usuario.model';
-import { obtenerPerfil } from '../services/auth.service';
+import { obtenerPerfil, eliminarToken } from '../services/auth.service';
 
 export const MiPerfil: React.FC = () => {
+  const navigate = useNavigate();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [cargando, setCargando] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,11 @@ export const MiPerfil: React.FC = () => {
     };
   }, []);
 
+  const handleCerrarSesion = () => {
+    eliminarToken();
+    navigate('/iniciar-sesion');
+  };
+
   return (
     <div>
       <header className="page-header">
@@ -72,6 +79,28 @@ export const MiPerfil: React.FC = () => {
               <span className="dato-valor">{usuario.correo}</span>
             </div>
           </div>
+
+          <div style={{ marginTop: 'var(--spacing-xl)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-border)' }}>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleCerrarSesion}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </section>
+      )}
+
+      {!cargando && !usuario && (
+        <section className="page-section">
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={handleCerrarSesion}
+          >
+            Cerrar sesión
+          </button>
         </section>
       )}
     </div>

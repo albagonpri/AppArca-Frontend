@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { Plaza } from '../../models/plaza.model';
+import { obtenerEtiquetaDificultad } from '../../models/plaza.model';
 import type { Reserva } from '../../models/reserva.model';
 import { obtenerPlazaPorId, obtenerReservasPlaza } from '../../services/plazas.service';
 
@@ -30,7 +31,7 @@ export const DetallePlaza: React.FC<Props> = ({ plazaId, onCerrar }) => {
 
         if (activo) {
           setPlaza(plazaData);
-          setReservas(reservasData);
+          setReservas(reservasData.data);
         }
       } catch (err: unknown) {
         if (activo) {
@@ -101,6 +102,48 @@ export const DetallePlaza: React.FC<Props> = ({ plazaId, onCerrar }) => {
               <span className="dato-label">Coordenadas</span>
               <span className="dato-valor">
                 Lat: {plaza.latitud} | Lon: {plaza.longitud}
+              </span>
+            </div>
+            <div className="dato-item">
+              <span className="dato-label">Dimensiones</span>
+              <span className="dato-valor">
+                {plaza.largo} m (largo) × {plaza.ancho} m (ancho)
+              </span>
+            </div>
+            <div className="dato-item">
+              <span className="dato-label">Cámaras de seguridad</span>
+              <span className="dato-valor">{plaza.tieneCamaras ? 'Sí' : 'No'}</span>
+            </div>
+            <div className="dato-item">
+              <span className="dato-label">Entrada difícil</span>
+              <span className="dato-valor">
+                {plaza.entradaDificil ? (
+                  <div>
+                    <span style={{ fontWeight: 600 }}>Sí</span>
+                    {plaza.dificultadesEntrada && plaza.dificultadesEntrada.length > 0 && (
+                      <div className="plaza-dificultades-badges">
+                        {plaza.dificultadesEntrada.map((dificultad) => (
+                          <span
+                            key={dificultad}
+                            className="badge badge-warning badge-dificultad"
+                          >
+                            ⚠️ {obtenerEtiquetaDificultad(dificultad)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {plaza.descripcionEntrada && (
+                      <div
+                        className="plaza-dificultad-alerta"
+                        style={{ marginTop: '0.4rem' }}
+                      >
+                        <strong>Detalle:</strong> {plaza.descripcionEntrada}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  'No'
+                )}
               </span>
             </div>
             <div className="dato-item">
