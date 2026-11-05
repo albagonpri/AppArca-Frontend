@@ -4,7 +4,7 @@ import type { PaginacionMeta } from '../models/paginacion.model';
 import { obtenerMisPlazas, eliminarPlaza } from '../services/plazas.service';
 import { FormularioPlaza } from '../components/plazas/FormularioPlaza';
 import { TarjetaPlaza } from '../components/plazas/TarjetaPlaza';
-import { DetallePlaza } from '../components/plazas/DetallePlaza';
+import { ModalDetallePlaza } from '../components/plazas/ModalDetallePlaza';
 import { Paginacion } from '../components/comun/Paginacion';
 
 export const MiPlaza: React.FC = () => {
@@ -268,24 +268,12 @@ export const MiPlaza: React.FC = () => {
         )}
       </section>
 
-      {/* Modal de detalle de la plaza */}
+      {/* Modal de detalle de la plaza mediante Portal */}
       {plazaDetalleId !== null && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-detalle-plaza-titulo"
-        >
-          <div
-            className="modal-content"
-            style={{ maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }}
-          >
-            <DetallePlaza
-              plazaId={plazaDetalleId}
-              onCerrar={handleCerrarDetalle}
-            />
-          </div>
-        </div>
+        <ModalDetallePlaza
+          plazaId={plazaDetalleId}
+          onCerrar={handleCerrarDetalle}
+        />
       )}
 
       {/* Modal de confirmación para eliminar plaza */}

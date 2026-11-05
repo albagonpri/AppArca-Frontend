@@ -16,7 +16,7 @@ export const Navbar: React.FC = () => {
         </NavLink>
 
         {autenticado ? (
-          <ul className="navbar-links nav-5-items">
+          <ul className="navbar-links nav-6-items">
             <li>
               <NavLink
                 to="/"
@@ -48,6 +48,14 @@ export const Navbar: React.FC = () => {
                 className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
               >
                 Mis vehículos
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/mis-favoritos"
+                className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
+              >
+                Favoritos
               </NavLink>
             </li>
             <li>

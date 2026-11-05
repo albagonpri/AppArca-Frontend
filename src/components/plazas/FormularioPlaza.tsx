@@ -1,15 +1,19 @@
 import React, { useState, useCallback, useRef } from 'react';
 import type {
   Plaza,
+  FotoPlaza,
   CrearPlazaDto,
   ActualizarPlazaDto,
   DificultadEntrada,
 } from '../../models/plaza.model';
+import { MOTIVOS_ENTRADA_DIFICIL } from '../../models/plaza.model';
 import {
-  DIFICULTADES_ENTRADA_OPCIONES,
-  DIFICULTADES_ENTRADA_ETIQUETAS,
-} from '../../models/plaza.model';
-import { crearPlaza, actualizarPlaza } from '../../services/plazas.service';
+  crearPlaza,
+  actualizarPlaza,
+  subirFotosPlaza,
+  eliminarFotoPlaza,
+  obtenerUrlFoto,
+} from '../../services/plazas.service';
 import {
   obtenerUsuarioSesion,
   obtenerPerfil,
@@ -102,9 +106,29 @@ export const FormularioPlaza: React.FC<Props> = ({
     plazaAEditar?.ancho != null ? String(plazaAEditar.ancho) : '',
   );
 
+  // ─── Identificación e indicaciones de acceso ─────────────
+  const [numeroPlaza, setNumeroPlaza] = useState<string>(
+    plazaAEditar?.numeroPlaza || '',
+  );
+  const [planta, setPlanta] = useState<string>(
+    plazaAEditar?.planta || '',
+  );
+  const [indicacionesAcceso, setIndicacionesAcceso] = useState<string>(
+    plazaAEditar?.indicacionesAcceso || '',
+  );
+
   // ─── Características ──────────────────────────────────────
-  const [entradaDificil, setEntradaDificil] = useState<boolean>(
-    Boolean(plazaAEditar?.entradaDificil),
+  const [estaCubierta, setEstaCubierta] = useState<boolean | null>(
+    plazaAEditar?.estaCubierta !== undefined ? plazaAEditar.estaCubierta : null,
+  );
+  const [tieneCargadorElectrico, setTieneCargadorElectrico] = useState<boolean | null>(
+    plazaAEditar?.tieneCargadorElectrico !== undefined ? plazaAEditar.tieneCargadorElectrico : null,
+  );
+  const [tieneCamaras, setTieneCamaras] = useState<boolean | null>(
+    plazaAEditar?.tieneCamaras !== undefined ? plazaAEditar.tieneCamaras : null,
+  );
+  const [entradaDificil, setEntradaDificil] = useState<boolean | null>(
+    plazaAEditar?.entradaDificil !== undefined ? plazaAEditar.entradaDificil : null,
   );
   const [dificultadesEntrada, setDificultadesEntrada] = useState<DificultadEntrada[]>(
     plazaAEditar?.dificultadesEntrada ? [...plazaAEditar.dificultadesEntrada] : [],
@@ -112,12 +136,68 @@ export const FormularioPlaza: React.FC<Props> = ({
   const [descripcionEntrada, setDescripcionEntrada] = useState<string>(
     plazaAEditar?.descripcionEntrada || '',
   );
-  const [tieneCamaras, setTieneCamaras] = useState<boolean>(
-    Boolean(plazaAEditar?.tieneCamaras),
-  );
   const [disponible, setDisponible] = useState<boolean>(
     plazaAEditar?.disponible !== undefined ? plazaAEditar.disponible : true,
   );
+
+  // ─── Fotografías de la plaza ───────────────────────────────
+  const [fotosExistentes] = useState<FotoPlaza[]>(
+    plazaAEditar?.fotos ? [...plazaAEditar.fotos] : [],
+  );
+  const [fotosNuevas, setFotosNuevas] = useState<File[]>([]);
+  const [previewsNuevas, setPreviewsNuevas] = useState<string[]>([]);
+  const [fotosAEliminar, setFotosAEliminar] = useState<number[]>([]);
+  const [errorFotos, setErrorFotos] = useState<string | null>(null);
+
+  const handleSeleccionarFotos = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setErrorFotos(null);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    const fotosVivasExistentes = fotosExistentes.filter(
+      (f) => !fotosAEliminar.includes(f.id),
+    ).length;
+    const totalFuturo = fotosVivasExistentes + fotosNuevas.length + files.length;
+
+    if (totalFuturo > 5) {
+      setErrorFotos(
+        `Solo puedes subir un máximo de 5 fotografías por plaza. Actualmente tendrías ${totalFuturo}.`,
+      );
+      return;
+    }
+
+    const formatosPermitidos = ['image/jpeg', 'image/png', 'image/webp'];
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorFotos(`La imagen "${file.name}" supera el tamaño máximo de 5 MB.`);
+        return;
+      }
+      if (!formatosPermitidos.includes(file.type)) {
+        setErrorFotos(
+          `El archivo "${file.name}" no es compatible. Formatos admitidos: JPEG, PNG y WebP.`,
+        );
+        return;
+      }
+    }
+
+    const nuevosPreviews = files.map((file) => URL.createObjectURL(file));
+    setFotosNuevas((prev) => [...prev, ...files]);
+    setPreviewsNuevas((prev) => [...prev, ...nuevosPreviews]);
+
+    e.target.value = '';
+  };
+
+  const handleQuitarFotoNueva = (index: number) => {
+    URL.revokeObjectURL(previewsNuevas[index]);
+    setFotosNuevas((prev) => prev.filter((_, i) => i !== index));
+    setPreviewsNuevas((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleMarcarEliminarFotoExistente = (fotoId: number) => {
+    setFotosAEliminar((prev) =>
+      prev.includes(fotoId) ? prev.filter((id) => id !== fotoId) : [...prev, fotoId],
+    );
+  };
 
   // ─── Estado general ───────────────────────────────────────
   const [cargando, setCargando] = useState<boolean>(false);
@@ -143,29 +223,25 @@ export const FormularioPlaza: React.FC<Props> = ({
     return { valido: true, numero: num };
   };
 
-  const handleEntradaDificilChange = (checked: boolean) => {
-    setEntradaDificil(checked);
-    if (!checked) {
+  const handleEntradaDificilChange = (valor: boolean) => {
+    setEntradaDificil(valor);
+    if (!valor) {
       setDificultadesEntrada([]);
       setDescripcionEntrada('');
     }
   };
 
-  const handleSeleccionarDificultad = (valor: string) => {
-    if (!valor) return;
-    const dificultad = valor as DificultadEntrada;
-    if (!dificultadesEntrada.includes(dificultad)) {
-      setDificultadesEntrada((prev) => [...prev, dificultad]);
-    }
-  };
-
-  const handleEliminarDificultad = (dificultadAEliminar: DificultadEntrada) => {
-    setDificultadesEntrada((prev) =>
-      prev.filter((item) => item !== dificultadAEliminar),
-    );
-    if (dificultadAEliminar === 'OTRA') {
-      setDescripcionEntrada('');
-    }
+  const handleToggleMotivo = (motivoId: DificultadEntrada) => {
+    setDificultadesEntrada((prev) => {
+      if (prev.includes(motivoId)) {
+        if (motivoId === 'OTRA') {
+          setDescripcionEntrada('');
+        }
+        return prev.filter((item) => item !== motivoId);
+      } else {
+        return [...prev, motivoId];
+      }
+    });
   };
 
   /** Invalida la confirmación cuando el usuario modifica cualquier campo de dirección. */
@@ -501,23 +577,44 @@ export const FormularioPlaza: React.FC<Props> = ({
       }
     }
 
-    // Validación de dificultades
-    if (entradaDificil) {
+    // Validación de preguntas de características (las cuatro son requeridas con Sí/No)
+    if (estaCubierta === null) {
+      setError('Debes responder a la pregunta: ¿La plaza está cubierta?');
+      return;
+    }
+
+    if (tieneCargadorElectrico === null) {
+      setError('Debes responder a la pregunta: ¿Dispone de cargador para vehículos eléctricos?');
+      return;
+    }
+
+    if (tieneCamaras === null) {
+      setError('Debes responder a la pregunta: ¿Dispone de cámaras de seguridad?');
+      return;
+    }
+
+    if (entradaDificil === null) {
+      setError('Debes responder a la pregunta: ¿Tiene una entrada difícil?');
+      return;
+    }
+
+    // Si tiene entrada difícil, es obligatorio indicar al menos un motivo
+    if (entradaDificil === true) {
       if (dificultadesEntrada.length === 0) {
-        setError('Debes seleccionar al menos una dificultad de entrada o desmarcar la casilla.');
+        setError('Has indicado que la entrada es difícil. Debes seleccionar al menos un motivo.');
         return;
       }
       if (dificultadesEntrada.includes('OTRA') && !descripcionEntrada.trim()) {
-        setError('Has seleccionado "Otra dificultad". Debes describirla en el campo correspondiente.');
+        setError('Has seleccionado la opción "Otro". Debes especificar el motivo en el campo de texto.');
         return;
       }
     }
 
-    const dificultadesFinales: DificultadEntrada[] = entradaDificil
+    const dificultadesFinales: DificultadEntrada[] = entradaDificil === true
       ? [...new Set(dificultadesEntrada)]
       : [];
     const descEntradaFinal =
-      entradaDificil && dificultadesFinales.includes('OTRA')
+      entradaDificil === true && dificultadesFinales.includes('OTRA')
         ? descripcionEntrada.trim() || null
         : null;
 
@@ -531,10 +628,15 @@ export const FormularioPlaza: React.FC<Props> = ({
           precioHora: valPrecio.numero!,
           largo: valLargo.numero!,
           ancho: valAncho.numero!,
-          entradaDificil,
+          numeroPlaza: numeroPlaza.trim(),
+          planta: planta.trim(),
+          indicacionesAcceso: indicacionesAcceso.trim(),
+          entradaDificil: Boolean(entradaDificil),
           dificultadesEntrada: dificultadesFinales,
           descripcionEntrada: descEntradaFinal,
-          tieneCamaras,
+          tieneCamaras: Boolean(tieneCamaras),
+          estaCubierta: Boolean(estaCubierta),
+          tieneCargadorElectrico: Boolean(tieneCargadorElectrico),
           disponible,
           ...(modificarDireccion && {
             calle: calle.trim(),
@@ -551,6 +653,26 @@ export const FormularioPlaza: React.FC<Props> = ({
         };
 
         await actualizarPlaza(plazaAEditar.id, dtoActualizar);
+
+        // Eliminar fotografías marcadas por el usuario
+        for (const fotoId of fotosAEliminar) {
+          try {
+            await eliminarFotoPlaza(plazaAEditar.id, fotoId);
+          } catch {
+            // Continuar con las demás
+          }
+        }
+
+        // Subir nuevas fotografías seleccionadas
+        if (fotosNuevas.length > 0) {
+          await subirFotosPlaza(plazaAEditar.id, fotosNuevas);
+        }
+
+        previewsNuevas.forEach((p) => URL.revokeObjectURL(p));
+        setFotosNuevas([]);
+        setPreviewsNuevas([]);
+        setFotosAEliminar([]);
+
         const mensaje = `Plaza "${tituloTrim}" actualizada con éxito.`;
         setExito(mensaje);
         if (onExito) onExito(mensaje);
@@ -565,26 +687,44 @@ export const FormularioPlaza: React.FC<Props> = ({
           ciudad: ciudad.trim(),
           poblacion: poblacion.trim() || undefined,
           provincia: provincia.trim() || undefined,
+          numeroPlaza: numeroPlaza.trim() || undefined,
+          planta: planta.trim() || undefined,
+          indicacionesAcceso: indicacionesAcceso.trim() || undefined,
           latitud: coordenadasMapa!.latitud,
           longitud: coordenadasMapa!.longitud,
           precioHora: valPrecio.numero!,
           largo: valLargo.numero!,
           ancho: valAncho.numero!,
-          entradaDificil,
+          entradaDificil: Boolean(entradaDificil),
           dificultadesEntrada: dificultadesFinales,
           descripcionEntrada: descEntradaFinal,
-          tieneCamaras,
+          tieneCamaras: Boolean(tieneCamaras),
+          estaCubierta: Boolean(estaCubierta),
+          tieneCargadorElectrico: Boolean(tieneCargadorElectrico),
         };
 
-        await crearPlaza(dtoCrear);
+        const plazaCreada = await crearPlaza(dtoCrear);
+
+        // Subir fotografías seleccionadas para la nueva plaza
+        if (fotosNuevas.length > 0 && plazaCreada?.id) {
+          await subirFotosPlaza(plazaCreada.id, fotosNuevas);
+        }
+
         const mensaje = `Plaza "${tituloTrim}" registrada con éxito.`;
         setExito(mensaje);
 
         // Limpiar formulario
+        previewsNuevas.forEach((p) => URL.revokeObjectURL(p));
+        setFotosNuevas([]);
+        setPreviewsNuevas([]);
+        setFotosAEliminar([]);
+        setErrorFotos(null);
         setTitulo(''); setDescripcion(''); setCalle(''); setNumero('');
         setCodigoPostal(''); setCiudad(''); setPoblacion(''); setProvincia(''); setPrecioHora('');
-        setLargo(''); setAncho(''); setEntradaDificil(false);
-        setDificultadesEntrada([]); setDescripcionEntrada(''); setTieneCamaras(false);
+        setNumeroPlaza(''); setPlanta(''); setIndicacionesAcceso('');
+        setLargo(''); setAncho(''); setEntradaDificil(null);
+        setDificultadesEntrada([]); setDescripcionEntrada(''); setTieneCamaras(null);
+        setEstaCubierta(null); setTieneCargadorElectrico(null);
         setDisponible(true); setCoordenadasMapa(null); setUbicacionConfirmada(false);
         setCandidatos([]); setMostrarCandidatos(false); setErrorGeo(null);
         setMensajeGeoExito(null);
@@ -1061,6 +1201,65 @@ export const FormularioPlaza: React.FC<Props> = ({
         )}
       </div>
 
+      {/* ── Sección: Identificación e indicaciones de acceso ── */}
+      <div className="form-seccion" style={{ marginTop: 'var(--spacing-md)' }}>
+        <h3 className="form-seccion-titulo">Acceso e identificación de la plaza</h3>
+        <p className="form-hint" style={{ marginBottom: 'var(--spacing-sm)' }}>
+          Datos opcionales para facilitar la localización y el acceso al aparcamiento.
+        </p>
+        <div className="form-grid">
+          <div className="form-group">
+            <label htmlFor="plaza-numero-plaza">
+              Número de plaza <span className="form-hint" style={{ fontWeight: 'normal' }}>(opcional)</span>
+            </label>
+            <input
+              id="plaza-numero-plaza"
+              type="text"
+              placeholder="Ej. 42, B-12..."
+              maxLength={50}
+              value={numeroPlaza}
+              onChange={(e) => setNumeroPlaza(e.target.value)}
+              disabled={cargando}
+            />
+            <span className="form-hint">Identificador de la plaza dentro del garaje</span>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="plaza-planta">
+              Planta <span className="form-hint" style={{ fontWeight: 'normal' }}>(opcional)</span>
+            </label>
+            <input
+              id="plaza-planta"
+              type="text"
+              placeholder="Ej. -1, Planta baja, Sótano 2..."
+              maxLength={50}
+              value={planta}
+              onChange={(e) => setPlanta(e.target.value)}
+              disabled={cargando}
+            />
+            <span className="form-hint">Nivel o planta en la que se encuentra</span>
+          </div>
+        </div>
+
+        <div className="form-group" style={{ marginTop: 'var(--spacing-sm)' }}>
+          <label htmlFor="plaza-indicaciones-acceso">
+            Indicaciones de acceso <span className="form-hint" style={{ fontWeight: 'normal' }}>(opcional)</span>
+          </label>
+          <textarea
+            id="plaza-indicaciones-acceso"
+            rows={3}
+            maxLength={1000}
+            placeholder="Instrucciones para acceder a la plaza: entrada al garaje, referencias, apertura de portón, giros..."
+            value={indicacionesAcceso}
+            onChange={(e) => setIndicacionesAcceso(e.target.value)}
+            disabled={cargando}
+          />
+          <span className="form-hint">
+            Información detallada para acceder a la plaza ({indicacionesAcceso.length}/1000 caracteres)
+          </span>
+        </div>
+      </div>
+
       {/* ── Sección 3: Dimensiones ── */}
       <div className="form-seccion" style={{ marginTop: 'var(--spacing-md)' }}>
         <h3 className="form-seccion-titulo">Dimensiones</h3>
@@ -1107,102 +1306,175 @@ export const FormularioPlaza: React.FC<Props> = ({
       <div className="form-seccion" style={{ marginTop: 'var(--spacing-md)' }}>
         <h3 className="form-seccion-titulo">Características</h3>
 
-        <div className="form-group form-group-checkbox">
-          <label htmlFor="plaza-camaras" className="checkbox-label">
-            <input
-              id="plaza-camaras"
-              type="checkbox"
-              checked={tieneCamaras}
-              onChange={(e) => setTieneCamaras(e.target.checked)}
-              disabled={cargando}
-            />
-            <span>El parking dispone de cámaras de seguridad</span>
+        {/* ¿La plaza está cubierta? */}
+        <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+          <label id="plaza-label-cubierta" style={{ fontWeight: 600 }}>
+            ¿La plaza está cubierta? <span className="campo-requerido">*</span>
           </label>
-        </div>
-
-        <div
-          className="form-group form-group-checkbox"
-          style={{ marginTop: 'var(--spacing-xs)' }}
-        >
-          <label htmlFor="plaza-entrada-dificil" className="checkbox-label">
-            <input
-              id="plaza-entrada-dificil"
-              type="checkbox"
-              checked={entradaDificil}
-              onChange={(e) => handleEntradaDificilChange(e.target.checked)}
-              disabled={cargando}
-            />
-            <span>La entrada puede resultar difícil para algunos vehículos</span>
-          </label>
-        </div>
-
-        {entradaDificil && (
-          <div className="plaza-dificultades-bloque" style={{ marginTop: 'var(--spacing-sm)' }}>
-            <div className="form-group">
-              <label htmlFor="plaza-selector-dificultad">
-                ¿Qué puede dificultar la entrada? <span className="campo-requerido">*</span>
-              </label>
-              <select
-                id="plaza-selector-dificultad"
-                value=""
-                onChange={(e) => {
-                  handleSeleccionarDificultad(e.target.value);
-                  e.target.value = '';
-                }}
+          <div className="form-sino-selector" role="radiogroup" aria-labelledby="plaza-label-cubierta">
+            <label className={`sino-option ${estaCubierta === true ? 'activo' : ''}`}>
+              <input
+                id="plaza-cubierta-si"
+                type="radio"
+                name="plaza-esta-cubierta"
+                checked={estaCubierta === true}
+                onChange={() => setEstaCubierta(true)}
                 disabled={cargando}
-              >
-                <option value="" disabled>
-                  -- Selecciona una dificultad para añadirla --
-                </option>
-                {DIFICULTADES_ENTRADA_OPCIONES.map((opcion) => {
-                  const yaSeleccionada = dificultadesEntrada.includes(opcion.id);
+              />
+              <span>Sí</span>
+            </label>
+            <label className={`sino-option ${estaCubierta === false ? 'activo' : ''}`}>
+              <input
+                id="plaza-cubierta-no"
+                type="radio"
+                name="plaza-esta-cubierta"
+                checked={estaCubierta === false}
+                onChange={() => setEstaCubierta(false)}
+                disabled={cargando}
+              />
+              <span>No</span>
+            </label>
+          </div>
+          <span className="form-hint">Indica si la plaza está a cubierto o al aire libre</span>
+        </div>
+
+        {/* ¿Dispone de cargador para vehículos eléctricos? */}
+        <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+          <label id="plaza-label-cargador" style={{ fontWeight: 600 }}>
+            ¿Dispone de cargador eléctrico? <span className="campo-requerido">*</span>
+          </label>
+          <div className="form-sino-selector" role="radiogroup" aria-labelledby="plaza-label-cargador">
+            <label className={`sino-option ${tieneCargadorElectrico === true ? 'activo' : ''}`}>
+              <input
+                id="plaza-cargador-si"
+                type="radio"
+                name="plaza-cargador-electrico"
+                checked={tieneCargadorElectrico === true}
+                onChange={() => setTieneCargadorElectrico(true)}
+                disabled={cargando}
+              />
+              <span>Sí</span>
+            </label>
+            <label className={`sino-option ${tieneCargadorElectrico === false ? 'activo' : ''}`}>
+              <input
+                id="plaza-cargador-no"
+                type="radio"
+                name="plaza-cargador-electrico"
+                checked={tieneCargadorElectrico === false}
+                onChange={() => setTieneCargadorElectrico(false)}
+                disabled={cargando}
+              />
+              <span>No</span>
+            </label>
+          </div>
+          <span className="form-hint">Permite a los usuarios con vehículos enchufables saber si pueden cargar la batería</span>
+        </div>
+
+        {/* ¿Dispone de cámaras de seguridad? */}
+        <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+          <label id="plaza-label-camaras" style={{ fontWeight: 600 }}>
+            ¿Dispone de cámaras de seguridad? <span className="campo-requerido">*</span>
+          </label>
+          <div className="form-sino-selector" role="radiogroup" aria-labelledby="plaza-label-camaras">
+            <label className={`sino-option ${tieneCamaras === true ? 'activo' : ''}`}>
+              <input
+                id="plaza-camaras-si"
+                type="radio"
+                name="plaza-tiene-camaras"
+                checked={tieneCamaras === true}
+                onChange={() => setTieneCamaras(true)}
+                disabled={cargando}
+              />
+              <span>Sí</span>
+            </label>
+            <label className={`sino-option ${tieneCamaras === false ? 'activo' : ''}`}>
+              <input
+                id="plaza-camaras-no"
+                type="radio"
+                name="plaza-tiene-camaras"
+                checked={tieneCamaras === false}
+                onChange={() => setTieneCamaras(false)}
+                disabled={cargando}
+              />
+              <span>No</span>
+            </label>
+          </div>
+          <span className="form-hint">Indica si el parking cuenta con sistema de videovigilancia</span>
+        </div>
+
+        {/* ¿Tiene una entrada difícil? */}
+        <div className="form-group" style={{ marginBottom: 'var(--spacing-md)' }}>
+          <label id="plaza-label-entrada-dificil" style={{ fontWeight: 600 }}>
+            ¿Tiene una entrada difícil? <span className="campo-requerido">*</span>
+          </label>
+          <div className="form-sino-selector" role="radiogroup" aria-labelledby="plaza-label-entrada-dificil">
+            <label className={`sino-option ${entradaDificil === true ? 'activo' : ''}`}>
+              <input
+                id="plaza-entrada-dificil-si"
+                type="radio"
+                name="plaza-entrada-dificil"
+                checked={entradaDificil === true}
+                onChange={() => handleEntradaDificilChange(true)}
+                disabled={cargando}
+              />
+              <span>Sí</span>
+            </label>
+            <label className={`sino-option ${entradaDificil === false ? 'activo' : ''}`}>
+              <input
+                id="plaza-entrada-dificil-no"
+                type="radio"
+                name="plaza-entrada-dificil"
+                checked={entradaDificil === false}
+                onChange={() => handleEntradaDificilChange(false)}
+                disabled={cargando}
+              />
+              <span>No</span>
+            </label>
+          </div>
+          <span className="form-hint">Advierte a conductores de vehículos grandes o bajos si el acceso requiere maniobra o precaución</span>
+        </div>
+
+        {/* Apartado adicional con los motivos de entrada difícil */}
+        {entradaDificil === true && (
+          <div className="plaza-dificultades-bloque" style={{ marginTop: 'var(--spacing-sm)', marginBottom: 'var(--spacing-md)' }}>
+            <div className="form-group">
+              <label style={{ fontWeight: 600, color: '#92400E' }}>
+                Indica los motivos de la entrada difícil: <span className="campo-requerido">*</span>
+              </label>
+              <span className="form-hint" style={{ color: '#B45309' }}>
+                Selecciona uno o varios motivos que puedan complicar el acceso a la plaza.
+              </span>
+
+              <div className="motivos-entrada-grid">
+                {MOTIVOS_ENTRADA_DIFICIL.map((motivo) => {
+                  const seleccionado = dificultadesEntrada.includes(motivo.id);
                   return (
-                    <option key={opcion.id} value={opcion.id} disabled={yaSeleccionada}>
-                      {opcion.nombre} {yaSeleccionada ? '(Ya seleccionada)' : ''}
-                    </option>
+                    <label
+                      key={motivo.id}
+                      className={`motivo-checkbox-label ${seleccionado ? 'seleccionado' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={seleccionado}
+                        onChange={() => handleToggleMotivo(motivo.id)}
+                        disabled={cargando}
+                      />
+                      <span>{motivo.nombre}</span>
+                    </label>
                   );
                 })}
-              </select>
-              <span className="form-hint">
-                Puedes seleccionar más de una opción si la entrada presenta varias dificultades.
-              </span>
-            </div>
-
-            {dificultadesEntrada.length > 0 && (
-              <div
-                className="plaza-chips-seleccionadas-bloque"
-                style={{ marginTop: 'var(--spacing-xs)' }}
-              >
-                <span className="plaza-chips-titulo">Seleccionadas:</span>
-                <div className="plaza-chips-lista">
-                  {dificultadesEntrada.map((id) => (
-                    <span key={id} className="chip-dificultad">
-                      <span>{DIFICULTADES_ENTRADA_ETIQUETAS[id]}</span>
-                      <button
-                        type="button"
-                        className="chip-dificultad-eliminar"
-                        onClick={() => handleEliminarDificultad(id)}
-                        disabled={cargando}
-                        aria-label={`Eliminar ${DIFICULTADES_ENTRADA_ETIQUETAS[id]}`}
-                        title="Eliminar opción"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
               </div>
-            )}
+            </div>
 
             {dificultadesEntrada.includes('OTRA') && (
               <div className="form-group" style={{ marginTop: 'var(--spacing-sm)' }}>
                 <label htmlFor="plaza-descripcion-entrada">
-                  Describe la dificultad <span className="campo-requerido">*</span>
+                  Especifica el motivo <span className="campo-requerido">*</span>
                 </label>
                 <input
                   id="plaza-descripcion-entrada"
                   type="text"
-                  placeholder="Describe la dificultad no listada..."
+                  placeholder="Detalla qué dificulta la entrada (máx. 300 caracteres)..."
                   maxLength={300}
                   value={descripcionEntrada}
                   onChange={(e) => setDescripcionEntrada(e.target.value)}
@@ -1210,7 +1482,7 @@ export const FormularioPlaza: React.FC<Props> = ({
                   required
                 />
                 <span className="form-hint">
-                  Campo obligatorio para especificar la dificultad adicional (máx. 300 caracteres).
+                  Campo obligatorio para especificar el motivo adicional.
                 </span>
               </div>
             )}
@@ -1232,6 +1504,110 @@ export const FormularioPlaza: React.FC<Props> = ({
               />
               <span>Plaza disponible para reservas</span>
             </label>
+          </div>
+        )}
+      </div>
+
+      {/* ── Sección: Fotografías de la plaza ── */}
+      <div className="form-seccion" style={{ marginTop: 'var(--spacing-md)' }}>
+        <h3 className="form-seccion-titulo">Fotografías de la plaza (máx. 5)</h3>
+        <p className="form-hint" style={{ marginTop: '0.2rem', marginBottom: 'var(--spacing-sm)' }}>
+          Añade hasta 5 fotografías desde tu galería o cámara para que los usuarios puedan ver tu plaza (formatos JPEG, PNG y WebP, máx. 5 MB por foto).
+        </p>
+
+        {errorFotos && (
+          <div className="mensaje-alerta mensaje-error" style={{ marginBottom: 'var(--spacing-sm)' }}>
+            {errorFotos}
+          </div>
+        )}
+
+        {/* Galería de fotos existentes (en edición) */}
+        {fotosExistentes.length > 0 && (
+          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--color-text)' }}>
+              Fotografías actuales:
+            </h4>
+            <div className="plaza-fotos-subida-grid">
+              {fotosExistentes.map((foto) => {
+                const eliminada = fotosAEliminar.includes(foto.id);
+                return (
+                  <div
+                    key={foto.id}
+                    className={`plaza-foto-subida-item ${eliminada ? 'marcada-eliminar' : ''}`}
+                  >
+                    <img
+                      src={obtenerUrlFoto(foto.url)}
+                      alt="Fotografía de la plaza"
+                      className="plaza-foto-subida-preview"
+                    />
+                    <button
+                      type="button"
+                      className={`btn-foto-accion ${eliminada ? 'btn-foto-recuperar' : 'btn-foto-eliminar'}`}
+                      onClick={() => handleMarcarEliminarFotoExistente(foto.id)}
+                      title={eliminada ? 'Deshacer eliminación' : 'Eliminar foto'}
+                    >
+                      {eliminada ? 'Deshacer' : '✕'}
+                    </button>
+                    {eliminada && (
+                      <div className="plaza-foto-aviso-eliminada">Se eliminará</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Galería de fotos nuevas seleccionadas */}
+        {previewsNuevas.length > 0 && (
+          <div style={{ marginBottom: 'var(--spacing-sm)' }}>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--color-text)' }}>
+              Nuevas fotografías para subir:
+            </h4>
+            <div className="plaza-fotos-subida-grid">
+              {previewsNuevas.map((previewUrl, index) => (
+                <div key={previewUrl} className="plaza-foto-subida-item">
+                  <img
+                    src={previewUrl}
+                    alt={`Nueva foto ${index + 1}`}
+                    className="plaza-foto-subida-preview"
+                  />
+                  <button
+                    type="button"
+                    className="btn-foto-accion btn-foto-eliminar"
+                    onClick={() => handleQuitarFotoNueva(index)}
+                    title="Quitar foto"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Selector de archivos */}
+        {fotosExistentes.filter((f) => !fotosAEliminar.includes(f.id)).length + fotosNuevas.length < 5 && (
+          <div className="form-group-subir-fotos" style={{ marginTop: 'var(--spacing-xs)' }}>
+            <label
+              htmlFor="plaza-input-fotos"
+              className="btn btn-secondary btn-sm"
+              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              <span>📷</span> Seleccionar fotos o tomar foto
+            </label>
+            <input
+              id="plaza-input-fotos"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleSeleccionarFotos}
+              disabled={cargando}
+              style={{ display: 'none' }}
+            />
+            <span style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginLeft: '0.5rem' }}>
+              ({fotosExistentes.filter((f) => !fotosAEliminar.includes(f.id)).length + fotosNuevas.length} de 5)
+            </span>
           </div>
         )}
       </div>
