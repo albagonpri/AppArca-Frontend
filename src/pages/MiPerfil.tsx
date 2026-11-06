@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { Usuario } from '../models/usuario.model';
 import { obtenerPerfil, eliminarToken } from '../services/auth.service';
 
@@ -78,15 +78,6 @@ export const MiPerfil: React.FC = () => {
               <span className="dato-label">Correo electrónico</span>
               <span className="dato-valor">{usuario.correo}</span>
             </div>
-          </div>
-
-          <div style={{ marginTop: 'var(--spacing-lg)', display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-            <Link to="/mis-favoritos" className="btn btn-secondary">
-              ❤️ Ver mis plazas favoritas
-            </Link>
-            <Link to="/mi-plaza" className="btn btn-secondary">
-              🅿️ Mis plazas publicadas
-            </Link>
           </div>
 
           <div style={{ marginTop: 'var(--spacing-xl)', paddingTop: 'var(--spacing-md)', borderTop: '1px solid var(--color-border)' }}>

@@ -142,9 +142,6 @@ export const Inicio: React.FC = () => {
       {/* ── Parte Superior: Encabezado y Barra de Búsqueda con Filtros ── */}
       <header className="page-header" style={{ marginBottom: 'var(--spacing-md)' }}>
         <h1 className="page-title">Encuentra tu plaza de aparcamiento</h1>
-        <p className="page-subtitle">
-          Busca, explora en el mapa y reserva plazas de aparcamiento privadas en toda España
-        </p>
       </header>
 
       <BarraBusquedaPlazas

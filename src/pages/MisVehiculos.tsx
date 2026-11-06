@@ -168,9 +168,6 @@ export const MisVehiculos: React.FC = () => {
     <div>
       <header className="page-header">
         <h1 className="page-title">Mis vehículos</h1>
-        <p className="page-subtitle">
-          Gestiona tus vehículos registrados para aparcamiento y reservas
-        </p>
       </header>
 
       {exito && (

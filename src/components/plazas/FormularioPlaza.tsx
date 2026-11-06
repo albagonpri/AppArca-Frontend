@@ -1,3 +1,5 @@
+import { EditorHorario } from './EditorHorario';
+import { cubrePeriodo, horarioCompleto, validarHorario } from '../../models/horario';
 import React, { useState, useCallback, useRef } from 'react';
 import type {
   Plaza,
@@ -10,6 +12,7 @@ import { MOTIVOS_ENTRADA_DIFICIL } from '../../models/plaza.model';
 import {
   crearPlaza,
   actualizarPlaza,
+  obtenerReservasPlaza,
   subirFotosPlaza,
   eliminarFotoPlaza,
   obtenerUrlFoto,
@@ -40,6 +43,8 @@ export const FormularioPlaza: React.FC<Props> = ({
   onCancelar,
 }) => {
   const esEdicion = Boolean(plazaAEditar);
+
+  const [horario, setHorario] = useState(() => plazaAEditar?.horario ?? horarioCompleto());
 
   // ─── Datos básicos ────────────────────────────────────────
   const [titulo, setTitulo] = useState<string>(plazaAEditar?.titulo || '');
@@ -524,6 +529,9 @@ export const FormularioPlaza: React.FC<Props> = ({
     setError(null);
     setExito(null);
 
+    const errorHorario = validarHorario(horario);
+    if (errorHorario) { setError(errorHorario); return; }
+
     // Validación de usuario activo
     let idUsuario = obtenerUsuarioSesion()?.id;
     if (!idUsuario) {
@@ -622,7 +630,27 @@ export const FormularioPlaza: React.FC<Props> = ({
       setCargando(true);
 
       if (esEdicion && plazaAEditar) {
+        const cambiaHorario = JSON.stringify(horario) !== JSON.stringify(plazaAEditar.horario ?? horarioCompleto());
+        if (cambiaHorario || (plazaAEditar.disponible && !disponible)) {
+          let page = 1;
+          let hayMas = true;
+          while (hayMas) {
+            const {data, meta} = await obtenerReservasPlaza(plazaAEditar.id, {page, limit:100});
+            const conflicto = data.find(r => {
+              const fin = new Date(r.fechaFin);
+              return (r.estado === 'CONFIRMADA' || r.estado === 'PENDIENTE') && +fin > Date.now()
+                && (!disponible || !cubrePeriodo(horario, new Date(r.fechaInicio), fin));
+            });
+            if (conflicto) {
+              const inicio = new Date(conflicto.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid'});
+              throw new Error('El cambio afectaría a la reserva del ' + inicio + ' (hora peninsular).');
+            }
+            hayMas = meta.hasNextPage;
+            page++;
+          }
+        }
         const dtoActualizar: ActualizarPlazaDto = {
+          ...(cambiaHorario && {horario}),
           titulo: tituloTrim,
           descripcion: descripcionTrim,
           precioHora: valPrecio.numero!,
@@ -679,6 +707,7 @@ export const FormularioPlaza: React.FC<Props> = ({
         else if (onPlazaCreada) onPlazaCreada();
       } else {
         const dtoCrear: CrearPlazaDto = {
+          horario,
           titulo: tituloTrim,
           descripcion: descripcionTrim,
           calle: calle.trim(),
@@ -719,6 +748,7 @@ export const FormularioPlaza: React.FC<Props> = ({
         setPreviewsNuevas([]);
         setFotosAEliminar([]);
         setErrorFotos(null);
+        setHorario(horarioCompleto());
         setTitulo(''); setDescripcion(''); setCalle(''); setNumero('');
         setCodigoPostal(''); setCiudad(''); setPoblacion(''); setProvincia(''); setPrecioHora('');
         setNumeroPlaza(''); setPlanta(''); setIndicacionesAcceso('');
@@ -1335,7 +1365,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Indica si la plaza está a cubierto o al aire libre</span>
         </div>
 
         {/* ¿Dispone de cargador para vehículos eléctricos? */}
@@ -1367,7 +1396,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Permite a los usuarios con vehículos enchufables saber si pueden cargar la batería</span>
         </div>
 
         {/* ¿Dispone de cámaras de seguridad? */}
@@ -1399,7 +1427,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Indica si el parking cuenta con sistema de videovigilancia</span>
         </div>
 
         {/* ¿Tiene una entrada difícil? */}
@@ -1431,7 +1458,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Advierte a conductores de vehículos grandes o bajos si el acceso requiere maniobra o precaución</span>
         </div>
 
         {/* Apartado adicional con los motivos de entrada difícil */}
@@ -1507,6 +1533,8 @@ export const FormularioPlaza: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      <EditorHorario horario={horario} cambiar={setHorario} disabled={cargando} />
 
       {/* ── Sección: Fotografías de la plaza ── */}
       <div className="form-seccion" style={{ marginTop: 'var(--spacing-md)' }}>
@@ -1594,7 +1622,7 @@ export const FormularioPlaza: React.FC<Props> = ({
               className="btn btn-secondary btn-sm"
               style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              <span>📷</span> Seleccionar fotos o tomar foto
+              Hacer o seleccionar fotos
             </label>
             <input
               id="plaza-input-fotos"

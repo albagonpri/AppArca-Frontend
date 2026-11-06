@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface CoordenadasUsuario {
   latitud: number;
@@ -29,7 +29,6 @@ export interface UseGeolocalizacionUsuarioResult {
 let coordsEnMemoria: CoordenadasUsuario | null = null;
 
 // Claves de sesión para evitar solicitudes repetidas o insistir si el usuario rechazó el permiso
-const CLAVE_SOLICITADA_SESION = 'apparca_geo_solicitada_sesion';
 const CLAVE_RECHAZADA_SESION = 'apparca_geo_rechazada_sesion';
 
 /**
@@ -102,7 +101,6 @@ export function useGeolocalizacionUsuario(
             coordsEnMemoria = nuevasCoords;
             try {
               sessionStorage.removeItem(CLAVE_RECHAZADA_SESION);
-              sessionStorage.setItem(CLAVE_SOLICITADA_SESION, 'true');
             } catch {
               // Ignorar
             }
@@ -147,87 +145,50 @@ export function useGeolocalizacionUsuario(
     [],
   );
 
-  // Monitorizar cambios en el estado de permisos y ejecutar solicitud automática si procede
+  const solicitudInicial = useRef(false);
+
   useEffect(() => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
-      return;
-    }
+    if (!navigator.geolocation) return;
 
-    let permissionStatus: PermissionStatus | null = null;
+    let activo = true;
+    let estado: PermissionStatus | undefined;
 
-    if ('permissions' in navigator && typeof navigator.permissions?.query === 'function') {
-      navigator.permissions
-        .query({ name: 'geolocation' })
-        .then((status) => {
-          permissionStatus = status;
-          setPermiso(status.state as EstadoPermisoUbicacion);
-          status.onchange = () => {
-            setPermiso(status.state as EstadoPermisoUbicacion);
-            if (status.state === 'granted') {
-              void obtenerUbicacion({ silencioso: true });
-            } else if (status.state === 'denied') {
-              try {
-                sessionStorage.setItem(CLAVE_RECHAZADA_SESION, 'true');
-              } catch {
-                // Ignorar
-              }
-            }
-          };
-        })
-        .catch(() => {
-          // Ignorar
-        });
-    }
-
-    // Comprobar si se debe ejecutar la solicitud automática al montar el componente
-    if (solicitarAutomaticamente) {
-      if (coordsEnMemoria) {
-        return;
-      }
-
-      let fueRechazada = false;
-      let fueSolicitada = false;
+    const solicitarAlAbrir = (permisoActual?: PermissionState) => {
+      if (!solicitarAutomaticamente || coordsEnMemoria || solicitudInicial.current) return;
+      if (permisoActual === 'denied') return;
       try {
-        fueRechazada = sessionStorage.getItem(CLAVE_RECHAZADA_SESION) === 'true';
-        fueSolicitada = sessionStorage.getItem(CLAVE_SOLICITADA_SESION) === 'true';
+        if (permisoActual !== 'granted' && sessionStorage.getItem(CLAVE_RECHAZADA_SESION) === 'true') return;
       } catch {
-        // Ignorar
+        // El navegador puede restringir el almacenamiento de sesión.
       }
+      solicitudInicial.current = true;
+      void obtenerUbicacion({ silencioso: true });
+    };
 
-      // Si el usuario rechazó explícitamente en esta visita, no volver a solicitar automáticamente
-      if (fueRechazada) {
-        return;
+    const actualizarPermiso = () => {
+      if (!estado) return;
+      setPermiso(estado.state);
+      if (estado.state === 'granted') void obtenerUbicacion({ silencioso: true });
+    };
+
+    const iniciar = async () => {
+      try {
+        estado = await navigator.permissions?.query({ name: 'geolocation' });
+      } catch {
+        // Algunos navegadores ofrecen geolocalización sin consulta de permisos.
       }
-
-      // Si no se ha solicitado en esta visita, solicitar automáticamente de forma silenciosa
-      if (!fueSolicitada) {
-        try {
-          sessionStorage.setItem(CLAVE_SOLICITADA_SESION, 'true');
-        } catch {
-          // Ignorar
-        }
-        void obtenerUbicacion({ silencioso: true });
-      } else {
-        // Si ya fue solicitada y el permiso del navegador ya está concedido, recuperar coordenadas
-        if ('permissions' in navigator && typeof navigator.permissions?.query === 'function') {
-          navigator.permissions
-            .query({ name: 'geolocation' })
-            .then((status) => {
-              if (status.state === 'granted') {
-                void obtenerUbicacion({ silencioso: true });
-              }
-            })
-            .catch(() => {
-              // Ignorar
-            });
-        }
+      if (!activo) return;
+      if (estado) {
+        setPermiso(estado.state);
+        estado.addEventListener('change', actualizarPermiso);
       }
-    }
+      solicitarAlAbrir(estado?.state);
+    };
 
+    void iniciar();
     return () => {
-      if (permissionStatus) {
-        permissionStatus.onchange = null;
-      }
+      activo = false;
+      estado?.removeEventListener('change', actualizarPermiso);
     };
   }, [solicitarAutomaticamente, obtenerUbicacion]);
 

@@ -63,9 +63,6 @@ export const Favoritos: React.FC = () => {
     <div className="favoritos-pagina">
       <header className="page-header">
         <h1 className="page-title">Mis favoritos</h1>
-        <p className="page-subtitle">
-          Plazas de aparcamiento que has guardado para consultar o reservar rápidamente
-        </p>
       </header>
 
       {error && (

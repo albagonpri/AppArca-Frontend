@@ -203,8 +203,8 @@ export const MisReservas: React.FC = () => {
                         </strong>
                       </td>
                       <td>{reserva.plaza?.direccion || '—'}</td>
-                      <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES')}</td>
-                      <td>{new Date(reserva.fechaFin).toLocaleString('es-ES')}</td>
+                      <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                      <td>{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
                       <td>
                         <span className={obtenerClaseEstado(reserva.estado)}>
                           {reserva.estado}

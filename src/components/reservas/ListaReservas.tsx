@@ -77,8 +77,8 @@ export const ListaReservas: React.FC<Props> = ({
                     ? `${reserva.plaza.titulo} (#${reserva.plaza.id})`
                     : `Plaza #${reserva.plazaId}`}
                 </td>
-                <td>{new Date(reserva.fechaInicio).toLocaleString()}</td>
-                <td>{new Date(reserva.fechaFin).toLocaleString()}</td>
+                <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                <td>{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
                 <td>
                   <span className={obtenerClaseEstado(reserva.estado)}>
                     {reserva.estado}
