@@ -1,15 +1,23 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { registrar, iniciarSesion, guardarToken, guardarUsuarioSesion } from '../services/auth.service';
 
 export const Registro: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const state = location.state as { plazaId?: number } | null;
+  const plazaIdParam = searchParams.get('plazaId');
+  const targetPlazaId = state?.plazaId || (plazaIdParam ? parseInt(plazaIdParam, 10) : null);
 
   const [nombre, setNombre] = useState('');
   const [correo, setCorreo] = useState('');
   const [repetirCorreo, setRepetirCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [repetirContrasena, setRepetirContrasena] = useState('');
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
+  const [mostrarRepetirContrasena, setMostrarRepetirContrasena] = useState(false);
 
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +78,12 @@ export const Registro: React.FC = () => {
           guardarUsuarioSesion(respuestaLogin.usuario);
         }
 
-        // Redirigir directamente al inicio
-        navigate('/');
+        // Redirigir directamente al inicio o a la plaza que estaba consultando
+        if (targetPlazaId) {
+          navigate(`/?plazaId=${targetPlazaId}`);
+        } else {
+          navigate('/');
+        }
       } catch {
         setError(
           'Cuenta creada correctamente, pero ocurrió un problema al iniciar sesión de forma automática. Por favor, inicia sesión manualmente.'
@@ -146,15 +158,54 @@ export const Registro: React.FC = () => {
 
           <div className="form-group">
             <label htmlFor="contrasena">Contraseña</label>
-            <input
-              id="contrasena"
-              type="password"
-              value={contrasena}
-              onChange={(e) => setContrasena(e.target.value)}
-              disabled={cargando}
-              autoComplete="new-password"
-              required
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="contrasena"
+                type={mostrarContrasena ? 'text' : 'password'}
+                value={contrasena}
+                onChange={(e) => setContrasena(e.target.value)}
+                disabled={cargando}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setMostrarContrasena((prev) => !prev)}
+                aria-label={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                title={mostrarContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {mostrarContrasena ? (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
             <div className="password-requirements" aria-live="polite">
               <div className={`requirement-item ${cumpleLongitud ? 'met' : 'unmet'}`}>
                 <span className="requirement-icon">{cumpleLongitud ? '✓' : '○'}</span>
@@ -165,15 +216,54 @@ export const Registro: React.FC = () => {
 
           <div className="form-group">
             <label htmlFor="repetirContrasena">Repetir contraseña</label>
-            <input
-              id="repetirContrasena"
-              type="password"
-              value={repetirContrasena}
-              onChange={(e) => setRepetirContrasena(e.target.value)}
-              disabled={cargando}
-              autoComplete="new-password"
-              required
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="repetirContrasena"
+                type={mostrarRepetirContrasena ? 'text' : 'password'}
+                value={repetirContrasena}
+                onChange={(e) => setRepetirContrasena(e.target.value)}
+                disabled={cargando}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setMostrarRepetirContrasena((prev) => !prev)}
+                aria-label={mostrarRepetirContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                title={mostrarRepetirContrasena ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {mostrarRepetirContrasena ? (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <button

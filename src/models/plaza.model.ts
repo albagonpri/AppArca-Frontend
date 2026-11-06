@@ -19,34 +19,44 @@ export interface OpcionDificultad {
   nombre: string;
 }
 
-export const DIFICULTADES_ENTRADA_OPCIONES: readonly OpcionDificultad[] = [
-  { id: "RESALTO", nombre: "Resalto o badén" },
+/** Motivos estándar de entrada difícil presentados en el formulario */
+export const MOTIVOS_ENTRADA_DIFICIL: readonly OpcionDificultad[] = [
   { id: "ENTRADA_ESTRECHA", nombre: "Entrada estrecha" },
   { id: "RAMPA_PRONUNCIADA", nombre: "Rampa pronunciada" },
+  { id: "GIRO_CERRADO", nombre: "Curvas cerradas" },
+  { id: "MANIOBRA_REDUCIDA", nombre: "Maniobras complicadas" },
+  { id: "ALTURA_LIMITADA", nombre: "Altura de acceso limitada" },
+  { id: "OTRA", nombre: "Otro" },
+] as const;
+
+export const DIFICULTADES_ENTRADA_OPCIONES: readonly OpcionDificultad[] = [
+  { id: "ENTRADA_ESTRECHA", nombre: "Entrada estrecha" },
+  { id: "RAMPA_PRONUNCIADA", nombre: "Rampa pronunciada" },
+  { id: "GIRO_CERRADO", nombre: "Curvas cerradas" },
+  { id: "MANIOBRA_REDUCIDA", nombre: "Maniobras complicadas" },
+  { id: "ALTURA_LIMITADA", nombre: "Altura de acceso limitada" },
+  { id: "RESALTO", nombre: "Resalto o badén" },
   { id: "PENDIENTE_PRONUNCIADA", nombre: "Pendiente pronunciada" },
-  { id: "GIRO_CERRADO", nombre: "Giro cerrado" },
-  { id: "ALTURA_LIMITADA", nombre: "Altura limitada" },
   { id: "ANCHURA_LIMITADA", nombre: "Anchura limitada" },
   { id: "OBSTACULOS", nombre: "Columnas u obstáculos en la entrada" },
-  { id: "MANIOBRA_REDUCIDA", nombre: "Espacio reducido para maniobrar" },
   { id: "SUELO_IRREGULAR", nombre: "Suelo irregular" },
   { id: "VEHICULOS_BAJOS", nombre: "Acceso complicado para vehículos bajos" },
-  { id: "OTRA", nombre: "Otra dificultad" },
+  { id: "OTRA", nombre: "Otro" },
 ] as const;
 
 export const DIFICULTADES_ENTRADA_ETIQUETAS: Record<DificultadEntrada, string> = {
-  RESALTO: "Resalto o badén",
   ENTRADA_ESTRECHA: "Entrada estrecha",
   RAMPA_PRONUNCIADA: "Rampa pronunciada",
+  GIRO_CERRADO: "Curvas cerradas",
+  MANIOBRA_REDUCIDA: "Maniobras complicadas",
+  ALTURA_LIMITADA: "Altura de acceso limitada",
+  RESALTO: "Resalto o badén",
   PENDIENTE_PRONUNCIADA: "Pendiente pronunciada",
-  GIRO_CERRADO: "Giro cerrado",
-  ALTURA_LIMITADA: "Altura limitada",
   ANCHURA_LIMITADA: "Anchura limitada",
   OBSTACULOS: "Columnas u obstáculos en la entrada",
-  MANIOBRA_REDUCIDA: "Espacio reducido para maniobrar",
   SUELO_IRREGULAR: "Suelo irregular",
   VEHICULOS_BAJOS: "Acceso complicado para vehículos bajos",
-  OTRA: "Otra dificultad",
+  OTRA: "Otro",
 };
 
 export function obtenerEtiquetaDificultad(dificultad: DificultadEntrada | string): string {
@@ -55,12 +65,24 @@ export function obtenerEtiquetaDificultad(dificultad: DificultadEntrada | string
   );
 }
 
+export interface FotoPlaza {
+  id: number;
+  plazaId: number;
+  url: string;
+  orden: number;
+  fechaCreacion?: string;
+}
+
 export interface Plaza {
   id: number;
   propietarioId: number;
   titulo: string;
   descripcion: string;
   direccion: string;
+  poblacion?: string | null;
+  numeroPlaza?: string | null;
+  planta?: string | null;
+  indicacionesAcceso?: string | null;
   latitud: number;
   longitud: number;
   precioHora: number;
@@ -70,10 +92,13 @@ export interface Plaza {
   dificultadesEntrada?: DificultadEntrada[];
   descripcionEntrada?: string | null;
   tieneCamaras: boolean;
+  estaCubierta: boolean;
+  tieneCargadorElectrico: boolean;
   disponible: boolean;
   fechaCreacion: string;
   fechaActualizacion: string;
   propietario?: Usuario;
+  fotos?: FotoPlaza[];
 }
 
 export interface CrearPlazaDto {
@@ -83,14 +108,23 @@ export interface CrearPlazaDto {
   numero: string;
   codigoPostal: string;
   ciudad: string;
+  poblacion?: string;
   provincia?: string;
+  numeroPlaza?: string;
+  planta?: string;
+  indicacionesAcceso?: string;
+  /** Coordenadas confirmadas por el usuario en el mapa. Si se envían, el backend las prioriza sobre CartoCiudad. */
+  latitud?: number;
+  longitud?: number;
   precioHora: number;
   largo: number;
   ancho: number;
-  entradaDificil?: boolean;
+  entradaDificil: boolean;
   dificultadesEntrada?: DificultadEntrada[];
   descripcionEntrada?: string | null;
-  tieneCamaras?: boolean;
+  tieneCamaras: boolean;
+  estaCubierta: boolean;
+  tieneCargadorElectrico: boolean;
   propietarioId?: number;
 }
 
@@ -101,7 +135,14 @@ export interface ActualizarPlazaDto {
   numero?: string;
   codigoPostal?: string;
   ciudad?: string;
+  poblacion?: string;
   provincia?: string;
+  numeroPlaza?: string;
+  planta?: string;
+  indicacionesAcceso?: string;
+  /** Coordenadas confirmadas por el usuario en el mapa al modificar la dirección. */
+  latitud?: number;
+  longitud?: number;
   precioHora?: number;
   largo?: number;
   ancho?: number;
@@ -109,5 +150,37 @@ export interface ActualizarPlazaDto {
   dificultadesEntrada?: DificultadEntrada[];
   descripcionEntrada?: string | null;
   tieneCamaras?: boolean;
+  estaCubierta?: boolean;
+  tieneCargadorElectrico?: boolean;
   disponible?: boolean;
+}
+
+export interface MarcadorPlazaMapa {
+  id: number;
+  titulo: string;
+  zona: string;
+  latitud: number;
+  longitud: number;
+  precioHora: number;
+  estaCubierta: boolean;
+  tieneCargadorElectrico: boolean;
+  tieneCamaras: boolean;
+  entradaDificil: boolean;
+}
+
+export interface FiltrosPlazasConsulta {
+  page?: number;
+  limit?: number;
+  q?: string;
+  provincia?: string;
+  municipio?: string;
+  codigoPostal?: string;
+  estaCubierta?: boolean;
+  tieneCargadorElectrico?: boolean;
+  tieneCamaras?: boolean;
+  entradaDificil?: boolean;
+  largoMin?: number;
+  anchoMin?: number;
+  precioMin?: number;
+  precioMax?: number;
 }

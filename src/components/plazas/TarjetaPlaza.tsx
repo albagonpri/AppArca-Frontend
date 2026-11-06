@@ -1,11 +1,14 @@
 import React from 'react';
 import type { Plaza } from '../../models/plaza.model';
+import { BotonFavorito } from './BotonFavorito';
+import { obtenerUrlFoto } from '../../services/plazas.service';
 
 interface Props {
   plaza: Plaza;
   onVer: (id: number) => void;
-  onEditar: (plaza: Plaza) => void;
-  onEliminar: (plaza: Plaza) => void;
+  onEditar?: (plaza: Plaza) => void;
+  onEliminar?: (plaza: Plaza) => void;
+  onReservar?: (plaza: Plaza) => void;
 }
 
 export const TarjetaPlaza: React.FC<Props> = ({
@@ -13,6 +16,7 @@ export const TarjetaPlaza: React.FC<Props> = ({
   onVer,
   onEditar,
   onEliminar,
+  onReservar,
 }) => {
   const precioFormateado = plaza.precioHora
     ? plaza.precioHora.toLocaleString('es-ES', {
@@ -29,11 +33,43 @@ export const TarjetaPlaza: React.FC<Props> = ({
     ? String(plaza.ancho).replace('.', ',')
     : '0';
 
+  const tieneFotos = Boolean(plaza.fotos && plaza.fotos.length > 0);
+  const primeraFotoUrl = tieneFotos && plaza.fotos ? obtenerUrlFoto(plaza.fotos[0].url) : null;
+
   return (
     <article className="plaza-card">
+      {/* Cabecera visual de foto de la plaza si existe */}
+      {tieneFotos && primeraFotoUrl ? (
+        <div className="plaza-card-portada" onClick={() => onVer(plaza.id)} style={{ cursor: 'pointer' }}>
+          <img
+            src={primeraFotoUrl}
+            alt={plaza.titulo}
+            className="plaza-card-imagen-portada"
+            loading="lazy"
+          />
+          <div className="plaza-card-fav-wrapper">
+            <BotonFavorito plazaId={plaza.id} tamano="sm" />
+          </div>
+          {plaza.fotos && plaza.fotos.length > 1 && (
+            <span className="plaza-card-fotos-conteo">
+              📷 {plaza.fotos.length}
+            </span>
+          )}
+        </div>
+      ) : null}
+
       <div className="plaza-card-header">
         <div className="plaza-info-principal">
-          <h3 className="plaza-card-titulo">{plaza.titulo}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <h3 className="plaza-card-titulo" onClick={() => onVer(plaza.id)} style={{ cursor: 'pointer' }}>
+              {plaza.titulo}
+            </h3>
+            {!tieneFotos && (
+              <div style={{ flexShrink: 0 }}>
+                <BotonFavorito plazaId={plaza.id} tamano="sm" />
+              </div>
+            )}
+          </div>
           <p className="plaza-card-direccion">{plaza.direccion}</p>
         </div>
         <span
@@ -55,6 +91,20 @@ export const TarjetaPlaza: React.FC<Props> = ({
         </div>
 
         <div className="plaza-caracteristicas-lista">
+          <div className="plaza-caracteristica-fila">
+            <span className="plaza-caracteristica-etiqueta">¿Está cubierta?:</span>
+            <span className="plaza-caracteristica-valor">
+              {plaza.estaCubierta ? 'Sí' : 'No'}
+            </span>
+          </div>
+
+          <div className="plaza-caracteristica-fila">
+            <span className="plaza-caracteristica-etiqueta">Cargador eléctrico:</span>
+            <span className="plaza-caracteristica-valor">
+              {plaza.tieneCargadorElectrico ? 'Sí' : 'No'}
+            </span>
+          </div>
+
           <div className="plaza-caracteristica-fila">
             <span className="plaza-caracteristica-etiqueta">Cámaras de seguridad:</span>
             <span className="plaza-caracteristica-valor">
@@ -90,20 +140,33 @@ export const TarjetaPlaza: React.FC<Props> = ({
         >
           Ver
         </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onEditar(plaza)}
-        >
-          Editar
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger-outline btn-sm"
-          onClick={() => onEliminar(plaza)}
-        >
-          Eliminar
-        </button>
+        {onReservar && plaza.disponible && (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => onReservar(plaza)}
+          >
+            Reservar
+          </button>
+        )}
+        {onEditar && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onEditar(plaza)}
+          >
+            Editar
+          </button>
+        )}
+        {onEliminar && (
+          <button
+            type="button"
+            className="btn btn-danger-outline btn-sm"
+            onClick={() => onEliminar(plaza)}
+          >
+            Eliminar
+          </button>
+        )}
       </div>
     </article>
   );

@@ -6,9 +6,11 @@ import { MiPlaza } from './pages/MiPlaza';
 import { MisReservas } from './pages/MisReservas';
 import { MisVehiculos } from './pages/MisVehiculos';
 import { MiPerfil } from './pages/MiPerfil';
+import { Favoritos } from './pages/Favoritos';
 import { IniciarSesion } from './pages/IniciarSesion';
 import { Registro } from './pages/Registro';
 import { AuthProvider } from './context/AuthContext';
+import { FavoritosProvider } from './context/FavoritosContext';
 import { useAuth } from './context/useAuth';
 
 const RutaProtegida: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -43,68 +45,86 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <div className="app-container">
-          <Navbar />
-          <main className="main-content">
-            <Routes>
-              <Route path="/" element={<Inicio />} />
-              <Route
-                path="/iniciar-sesion"
-                element={
-                  <RutaPublicaAuth>
-                    <IniciarSesion />
-                  </RutaPublicaAuth>
-                }
-              />
-              <Route
-                path="/registro"
-                element={
-                  <RutaPublicaAuth>
-                    <Registro />
-                  </RutaPublicaAuth>
-                }
-              />
-              <Route
-                path="/mi-plaza"
-                element={
-                  <RutaProtegida>
-                    <MiPlaza />
-                  </RutaProtegida>
-                }
-              />
-              <Route
-                path="/mis-reservas"
-                element={
-                  <RutaProtegida>
-                    <MisReservas />
-                  </RutaProtegida>
-                }
-              />
-              <Route
-                path="/mis-vehiculos"
-                element={
-                  <RutaProtegida>
-                    <MisVehiculos />
-                  </RutaProtegida>
-                }
-              />
-              <Route
-                path="/mi-perfil"
-                element={
-                  <RutaProtegida>
-                    <MiPerfil />
-                  </RutaProtegida>
-                }
-              />
+        <FavoritosProvider>
+          <div className="app-container">
+            <Navbar />
+            <main className="main-content">
+              <Routes>
+                <Route path="/" element={<Inicio />} />
+                <Route
+                  path="/iniciar-sesion"
+                  element={
+                    <RutaPublicaAuth>
+                      <IniciarSesion />
+                    </RutaPublicaAuth>
+                  }
+                />
+                <Route
+                  path="/registro"
+                  element={
+                    <RutaPublicaAuth>
+                      <Registro />
+                    </RutaPublicaAuth>
+                  }
+                />
+                <Route
+                  path="/mi-plaza"
+                  element={
+                    <RutaProtegida>
+                      <MiPlaza />
+                    </RutaProtegida>
+                  }
+                />
+                <Route
+                  path="/mis-favoritos"
+                  element={
+                    <RutaProtegida>
+                      <Favoritos />
+                    </RutaProtegida>
+                  }
+                />
+                <Route
+                  path="/favoritos"
+                  element={
+                    <RutaProtegida>
+                      <Favoritos />
+                    </RutaProtegida>
+                  }
+                />
+                <Route
+                  path="/mis-reservas"
+                  element={
+                    <RutaProtegida>
+                      <MisReservas />
+                    </RutaProtegida>
+                  }
+                />
+                <Route
+                  path="/mis-vehiculos"
+                  element={
+                    <RutaProtegida>
+                      <MisVehiculos />
+                    </RutaProtegida>
+                  }
+                />
+                <Route
+                  path="/mi-perfil"
+                  element={
+                    <RutaProtegida>
+                      <MiPerfil />
+                    </RutaProtegida>
+                  }
+                />
 
-              {/* Redirecciones de compatibilidad */}
-              <Route path="/usuarios" element={<Navigate to="/mi-perfil" replace />} />
-              <Route path="/plazas" element={<Navigate to="/mi-plaza" replace />} />
-              <Route path="/reservas" element={<Navigate to="/mis-reservas" replace />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-        </div>
+                {/* Redirecciones de compatibilidad */}
+                <Route path="/usuarios" element={<Navigate to="/mi-perfil" replace />} />
+                <Route path="/plazas" element={<Navigate to="/mi-plaza" replace />} />
+                <Route path="/reservas" element={<Navigate to="/mis-reservas" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+          </div>
+        </FavoritosProvider>
       </AuthProvider>
     </BrowserRouter>
   );

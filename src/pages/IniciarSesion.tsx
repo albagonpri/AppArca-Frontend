@@ -1,9 +1,15 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { iniciarSesion, guardarToken, guardarUsuarioSesion } from '../services/auth.service';
 
 export const IniciarSesion: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const state = location.state as { plazaId?: number } | null;
+  const plazaIdParam = searchParams.get('plazaId');
+  const targetPlazaId = state?.plazaId || (plazaIdParam ? parseInt(plazaIdParam, 10) : null);
 
   const [correo, setCorreo] = useState('');
   const [contrasena, setContrasena] = useState('');
@@ -42,8 +48,12 @@ export const IniciarSesion: React.FC = () => {
         guardarUsuarioSesion(respuesta.usuario);
       }
 
-      // Redirigir al inicio de la aplicación
-      navigate('/');
+      // Redirigir al inicio o a la plaza que estaba consultando
+      if (targetPlazaId) {
+        navigate(`/?plazaId=${targetPlazaId}`);
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
