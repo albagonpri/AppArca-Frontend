@@ -1,4 +1,4 @@
-import type { Horario } from './horario';
+import type { Horario, TipoDisponibilidad } from './horario';
 import type { Usuario } from "./usuario.model";
 
 export type DificultadEntrada =
@@ -75,6 +75,7 @@ export interface FotoPlaza {
 }
 
 export interface Plaza {
+  tipoDisponibilidad?: TipoDisponibilidad;
   horario?: Horario | null;
   id: number;
   propietarioId: number;
@@ -104,6 +105,7 @@ export interface Plaza {
 }
 
 export interface CrearPlazaDto {
+  tipoDisponibilidad?: TipoDisponibilidad;
   horario?: Horario;
   titulo: string;
   descripcion?: string;
@@ -132,6 +134,7 @@ export interface CrearPlazaDto {
 }
 
 export interface ActualizarPlazaDto {
+  tipoDisponibilidad?: TipoDisponibilidad;
   horario?: Horario;
   titulo?: string;
   descripcion?: string;

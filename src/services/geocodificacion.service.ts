@@ -79,3 +79,11 @@ export async function consultarCodigoPostal(
 
   return manejarRespuesta<ResultadoCodigoPostal>(respuesta);
 }
+
+export async function direccionDelPunto(latitud: number, longitud: number) {
+  const params = new URLSearchParams({ latitud: String(latitud), longitud: String(longitud) });
+  const respuesta = await fetch(`${API_URL}/geocodificacion/inversa?${params}`, { headers: obtenerCabecerasAuth() });
+  return manejarRespuesta<{
+    calle: string; numero: string; codigoPostal: string; municipio: string; poblacion: string; provincia: string;
+  }>(respuesta);
+}

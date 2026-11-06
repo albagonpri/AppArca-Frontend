@@ -5,18 +5,6 @@ interface CapaMapaBaseProps {
   maxZoom?: number;
 }
 
-/**
- * Capa base de teselas para los mapas de Leaflet en AppArca.
- *
- * Selección y prioridad de proveedores:
- * 1. CARTO Voyager cuando existe VITE_CARTO_API_KEY (estética moderna estilo Google Maps con
- *    calles, carreteras, edificios y zonas verdes claramente diferenciadas).
- * 2. MapTiler Streets cuando existe VITE_MAPTILER_API_KEY.
- * 3. OpenStreetMap estándar como alternativa cuando no hay ninguna API Key configurada.
- *
- * Importante: Nunca se realizan peticiones a CARTO Voyager si no hay una clave configurada,
- * evitando que el proveedor devuelva teselas con la marca de agua «API KEY REQUIRED».
- */
 export const CapaMapaBase: React.FC<CapaMapaBaseProps> = ({ maxZoom = 20 }) => {
   const apiKeyCarto = import.meta.env.VITE_CARTO_API_KEY?.trim();
   const apiKeyMapTiler = import.meta.env.VITE_MAPTILER_API_KEY?.trim();
@@ -60,7 +48,19 @@ export const CapaMapaBase: React.FC<CapaMapaBaseProps> = ({ maxZoom = 20 }) => {
     );
   }
 
-  // 3. OpenStreetMap estándar (fallback seguro sin claves para que el mapa siempre funcione)
+  if (!usarFallbackOSM) {
+    return (
+      <TileLayer
+        key="ign-callejero"
+        url="https://www.ign.es/wmts/ign-base?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=IGNBaseTodo&STYLE=default&TILEMATRIXSET=GoogleMapsCompatible&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg"
+        attribution='&copy; <a href="https://www.ign.es/">Instituto Geográfico Nacional</a>'
+        maxNativeZoom={19}
+        maxZoom={maxZoom}
+        eventHandlers={{ tileerror: () => setUsarFallbackOSM(true) }}
+      />
+    );
+  }
+
   return (
     <TileLayer
       key="osm-estandar"
