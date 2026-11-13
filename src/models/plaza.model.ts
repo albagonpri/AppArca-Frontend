@@ -98,6 +98,7 @@ export interface Plaza {
   estaCubierta: boolean;
   tieneCargadorElectrico: boolean;
   disponible: boolean;
+  alturaMaxima?: number | null;
   fechaCreacion: string;
   fechaActualizacion: string;
   propietario?: Usuario;
@@ -130,6 +131,7 @@ export interface CrearPlazaDto {
   tieneCamaras: boolean;
   estaCubierta: boolean;
   tieneCargadorElectrico: boolean;
+  alturaMaxima?: number;
   propietarioId?: number;
 }
 
@@ -159,6 +161,7 @@ export interface ActualizarPlazaDto {
   tieneCamaras?: boolean;
   estaCubierta?: boolean;
   tieneCargadorElectrico?: boolean;
+  alturaMaxima?: number;
   disponible?: boolean;
 }
 

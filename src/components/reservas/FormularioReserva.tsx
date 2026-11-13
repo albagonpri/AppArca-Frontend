@@ -8,6 +8,7 @@ interface Props {
 export const FormularioReserva: React.FC<Props> = ({ onReservaCreada }) => {
   const [usuarioId, setUsuarioId] = useState<string>('');
   const [plazaId, setPlazaId] = useState<string>('');
+  const [vehiculoId, setVehiculoId] = useState<string>('');
   const [fechaInicio, setFechaInicio] = useState<string>('');
   const [fechaFin, setFechaFin] = useState<string>('');
 
@@ -41,12 +42,15 @@ export const FormularioReserva: React.FC<Props> = ({ onReservaCreada }) => {
       return;
     }
 
+    const vehIdNum = vehiculoId.trim() ? parseInt(vehiculoId, 10) : undefined;
+
     try {
       setCargando(true);
       // Conversión al formato ISO 8601 que espera la API
       await crearReserva({
         usuarioId: usrIdNum,
         plazaId: plzIdNum,
+        ...(vehIdNum && { vehiculoId: vehIdNum }),
         fechaInicio: fechaInicioDate.toISOString(),
         fechaFin: fechaFinDate.toISOString(),
       });
@@ -54,6 +58,7 @@ export const FormularioReserva: React.FC<Props> = ({ onReservaCreada }) => {
       setExito('Reserva creada con éxito.');
       setUsuarioId('');
       setPlazaId('');
+      setVehiculoId('');
       setFechaInicio('');
       setFechaFin('');
       onReservaCreada();
@@ -102,6 +107,20 @@ export const FormularioReserva: React.FC<Props> = ({ onReservaCreada }) => {
             required
           />
           <span className="form-hint">ID de la plaza de aparcamiento deseada</span>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="vehiculoId">ID del Vehículo (Opcional)</label>
+          <input
+            id="vehiculoId"
+            type="number"
+            min="1"
+            placeholder="Ej. 1"
+            value={vehiculoId}
+            onChange={(e) => setVehiculoId(e.target.value)}
+            disabled={cargando}
+          />
+          <span className="form-hint">ID del vehículo asociado a la reserva</span>
         </div>
 
         <div className="form-group">

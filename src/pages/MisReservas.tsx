@@ -181,37 +181,58 @@ export const MisReservas: React.FC = () => {
                     {tipo === 'recibidas' && <th>Conductor</th>}
                     <th>Plaza</th>
                     <th>Dirección</th>
+                    <th>Vehículo</th>
                     <th>Fecha Inicio</th>
                     <th>Fecha Fin</th>
+                    <th>Importe</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {reservas.map((reserva) => (
-                    <tr key={reserva.id}>
-                      <td>#{reserva.id}</td>
-                      {tipo === 'recibidas' && (
+                  {reservas.map((reserva) => {
+                    const textoVehiculo = reserva.vehiculo
+                      ? `${reserva.vehiculo.matricula}${reserva.vehiculo.marca ? ` (${reserva.vehiculo.marca} ${reserva.vehiculo.modelo || ''})` : ''}`
+                      : '—';
+                    const precioFormateado = reserva.precioTotal != null
+                      ? `${Number(reserva.precioTotal).toFixed(2)} €`
+                      : '—';
+
+                    return (
+                      <tr key={reserva.id}>
+                        <td>#{reserva.id}</td>
+                        {tipo === 'recibidas' && (
+                          <td>
+                            {reserva.usuario
+                              ? `${reserva.usuario.nombre} (${reserva.usuario.correo})`
+                              : `Usuario #${reserva.usuarioId}`}
+                          </td>
+                        )}
                         <td>
-                          {reserva.usuario
-                            ? `${reserva.usuario.nombre} (${reserva.usuario.correo})`
-                            : `Usuario #${reserva.usuarioId}`}
+                          <strong>
+                            {reserva.plaza?.titulo || `Plaza #${reserva.plazaId}`}
+                          </strong>
                         </td>
-                      )}
-                      <td>
-                        <strong>
-                          {reserva.plaza?.titulo || `Plaza #${reserva.plazaId}`}
-                        </strong>
-                      </td>
-                      <td>{reserva.plaza?.direccion || '—'}</td>
-                      <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
-                      <td>{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
-                      <td>
-                        <span className={obtenerClaseEstado(reserva.estado)}>
-                          {reserva.estado}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        <td>{reserva.plaza?.direccion || '—'}</td>
+                        <td>
+                          <span style={{ fontWeight: reserva.vehiculo ? 600 : 400 }}>
+                            {textoVehiculo}
+                          </span>
+                        </td>
+                        <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                        <td>{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                        <td>
+                          <strong style={{ color: reserva.precioTotal != null ? 'var(--color-primary)' : 'inherit' }}>
+                            {precioFormateado}
+                          </strong>
+                        </td>
+                        <td>
+                          <span className={obtenerClaseEstado(reserva.estado)}>
+                            {reserva.estado}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -122,6 +122,9 @@ export const FormularioPlaza: React.FC<Props> = ({
   const [ancho, setAncho] = useState<string>(
     plazaAEditar?.ancho != null ? String(plazaAEditar.ancho) : '',
   );
+  const [alturaMaxima, setAlturaMaxima] = useState<string>(
+    plazaAEditar?.alturaMaxima != null ? String(plazaAEditar.alturaMaxima) : '',
+  );
 
   // ─── Identificación e indicaciones de acceso ─────────────
   const [numeroPlaza, setNumeroPlaza] = useState<string>(
@@ -629,6 +632,16 @@ export const FormularioPlaza: React.FC<Props> = ({
     const valAncho = validarNumeroPositivoObligatorio(ancho, 'El ancho');
     if (!valAncho.valido) { setError(valAncho.errorMsg || 'Ancho inválido.'); return; }
 
+    let alturaMaximaNum: number | undefined = undefined;
+    if (alturaMaxima.trim()) {
+      const parsedAltura = parseFloat(alturaMaxima.replace(',', '.'));
+      if (isNaN(parsedAltura) || parsedAltura <= 0) {
+        setError('La altura máxima de acceso debe ser un número positivo en metros (ej. 2.10).');
+        return;
+      }
+      alturaMaximaNum = Math.round(parsedAltura * 100) / 100;
+    }
+
     // Validación de dirección y ubicación
     const debeValidarDireccion = !esEdicion || modificarDireccion;
     if (debeValidarDireccion) {
@@ -718,6 +731,7 @@ export const FormularioPlaza: React.FC<Props> = ({
           precioHora: valPrecio.numero!,
           largo: valLargo.numero!,
           ancho: valAncho.numero!,
+          alturaMaxima: alturaMaximaNum,
           numeroPlaza: numeroPlaza.trim(),
           planta: planta.trim(),
           indicacionesAcceso: indicacionesAcceso.trim(),
@@ -787,6 +801,7 @@ export const FormularioPlaza: React.FC<Props> = ({
           precioHora: valPrecio.numero!,
           largo: valLargo.numero!,
           ancho: valAncho.numero!,
+          alturaMaxima: alturaMaximaNum,
           entradaDificil: Boolean(entradaDificil),
           dificultadesEntrada: dificultadesFinales,
           descripcionEntrada: descEntradaFinal,
@@ -816,7 +831,7 @@ export const FormularioPlaza: React.FC<Props> = ({
         setTitulo(''); setDescripcion(''); setCalle(''); setNumero('');
         setCodigoPostal(''); setCiudad(''); setPoblacion(''); setProvincia(''); setPrecioHora('');
         setNumeroPlaza(''); setPlanta(''); setIndicacionesAcceso('');
-        setLargo(''); setAncho(''); setEntradaDificil(null);
+        setLargo(''); setAncho(''); setAlturaMaxima(''); setEntradaDificil(null);
         setDificultadesEntrada([]); setDescripcionEntrada(''); setTieneCamaras(null);
         setEstaCubierta(null); setTieneCargadorElectrico(null);
         setDisponible(true); setCoordenadasMapa(null); setUbicacionConfirmada(false);
@@ -1393,6 +1408,23 @@ export const FormularioPlaza: React.FC<Props> = ({
               required
             />
             <span className="form-hint">Ancho de la plaza en metros</span>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="plaza-altura-maxima">
+              Altura máxima de acceso (m) <span style={{ fontSize: '0.85em', color: 'var(--color-text-muted)', fontWeight: 'normal' }}>(opcional)</span>
+            </label>
+            <input
+              id="plaza-altura-maxima"
+              type="number"
+              step="0.01"
+              min="0.1"
+              placeholder="Ej. 2.10"
+              value={alturaMaxima}
+              onChange={(e) => setAlturaMaxima(e.target.value)}
+              disabled={cargando}
+            />
+            <span className="form-hint">Gálibo o altura libre máxima permitida en metros</span>
           </div>
         </div>
       </div>

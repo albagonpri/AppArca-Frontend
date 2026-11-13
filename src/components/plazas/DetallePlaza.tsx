@@ -6,8 +6,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import type { Plaza } from '../../models/plaza.model';
 import { obtenerEtiquetaDificultad } from '../../models/plaza.model';
 import type { Reserva } from '../../models/reserva.model';
+import type { Vehiculo } from '../../models/vehiculo.model';
 import { obtenerPlazaPorId, obtenerReservasPlaza } from '../../services/plazas.service';
 import { crearReserva, consultarDisponibilidad } from '../../services/reservas.service';
+import { obtenerVehiculos } from '../../services/vehiculos.service';
 import { useAuth } from '../../context/useAuth';
 import { obtenerUsuarioSesion } from '../../services/auth.service';
 import { BotonFavorito } from './BotonFavorito';
@@ -47,6 +49,56 @@ export const DetallePlaza: React.FC<Props> = ({
   const finISO = finales[finRepetido]?.toISOString() ?? '';
   const clave = [plazaId,inicioISO,finISO].join('/');
   const [consulta, setConsulta] = useState({clave:'', disponible:false, mensaje:''});
+
+  // Vehículos del usuario para asociar a la reserva
+  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
+  const [vehiculoSeleccionadoId, setVehiculoSeleccionadoId] = useState<number | null>(null);
+  const [cargandoVehiculos, setCargandoVehiculos] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!autenticado || !mostrarFormularioReserva) return;
+    let activo = true;
+    const cargarVehiculosUsuario = async () => {
+      try {
+        setCargandoVehiculos(true);
+        const res = await obtenerVehiculos({ limit: 100 });
+        if (activo) {
+          setVehiculos(res.data);
+          if (res.data.length > 0) {
+            setVehiculoSeleccionadoId(res.data[0].id);
+          }
+        }
+      } catch {
+        // Ignorar fallo al cargar vehículos
+      } finally {
+        if (activo) setCargandoVehiculos(false);
+      }
+    };
+    void cargarVehiculosUsuario();
+    return () => {
+      activo = false;
+    };
+  }, [autenticado, mostrarFormularioReserva]);
+
+  // Cálculo en tiempo real del precio total según horas y minutos
+  const calculoPrecio = (() => {
+    if (!inicioISO || !finISO || !plaza) return null;
+    const ini = new Date(inicioISO);
+    const fin = new Date(finISO);
+    if (isNaN(ini.getTime()) || isNaN(fin.getTime()) || ini >= fin) return null;
+    const duracionMs = fin.getTime() - ini.getTime();
+    const duracionHoras = duracionMs / (1000 * 60 * 60);
+    const horasEnteras = Math.floor(duracionHoras);
+    const minutosRestantes = Math.round((duracionHoras - horasEnteras) * 60);
+    const total = Math.round(plaza.precioHora * duracionHoras * 100) / 100;
+    return {
+      duracionHoras,
+      horasEnteras,
+      minutosRestantes,
+      total,
+      totalFormateado: total.toFixed(2),
+    };
+  })();
   useEffect(() => {
     if (exitoReserva || !mostrarFormularioReserva || !autenticado || !inicioISO || !finISO) return;
     const control = new AbortController();
@@ -161,11 +213,17 @@ export const DetallePlaza: React.FC<Props> = ({
       return;
     }
 
+    if (!vehiculoSeleccionadoId) {
+      setErrorReserva('Debes seleccionar un vehículo registrado para poder realizar la reserva.');
+      return;
+    }
+
     try {
       setGuardandoReserva(true);
       await crearReserva({
         usuarioId: usuarioSesion.id,
         plazaId,
+        vehiculoId: vehiculoSeleccionadoId,
         fechaInicio: inicioDate.toISOString(),
         fechaFin: finDate.toISOString(),
       });
@@ -264,6 +322,12 @@ export const DetallePlaza: React.FC<Props> = ({
                 {plaza.largo} m (largo) × {plaza.ancho} m (ancho)
               </span>
             </div>
+            {plaza.alturaMaxima != null && (
+              <div className="dato-item">
+                <span className="dato-label">Altura máxima</span>
+                <span className="dato-valor">{plaza.alturaMaxima} m</span>
+              </div>
+            )}
             <div className="dato-item">
               <span className="dato-label">¿Está cubierta?</span>
               <span className="dato-valor">{plaza.estaCubierta ? 'Sí' : 'No'}</span>
@@ -425,6 +489,59 @@ export const DetallePlaza: React.FC<Props> = ({
 
                 {!exitoReserva && (
                   <>
+                    {/* Selector de vehículo */}
+                    {cargandoVehiculos && (
+                      <p className="loading-text" style={{ fontSize: '0.85rem' }}>
+                        Cargando tus vehículos...
+                      </p>
+                    )}
+
+                    {!cargandoVehiculos && vehiculos.length === 0 && (
+                      <div
+                        className="mensaje-alerta mensaje-warning"
+                        style={{ marginBottom: 'var(--spacing-sm)', padding: '0.75rem' }}
+                      >
+                        <p style={{ margin: 0, fontWeight: 600 }}>
+                          ⚠️ No tienes ningún vehículo registrado.
+                        </p>
+                        <p style={{ margin: '0.25rem 0 0.5rem', fontSize: 'var(--font-size-sm)' }}>
+                          Para poder realizar una reserva en AppArca debes asociar al menos uno de tus vehículos.
+                        </p>
+                        <Link to="/mis-vehiculos" className="btn btn-primary btn-sm">
+                          + Añadir mi primer vehículo
+                        </Link>
+                      </div>
+                    )}
+
+                    {!cargandoVehiculos && vehiculos.length > 0 && (
+                      <div className="form-group" style={{ marginBottom: 'var(--spacing-sm)' }}>
+                        <label htmlFor="reserva-vehiculo" style={{ fontWeight: 600 }}>
+                          Vehículo para la reserva <span className="campo-requerido">*</span>
+                        </label>
+                        <select
+                          id="reserva-vehiculo"
+                          value={vehiculoSeleccionadoId ?? ''}
+                          onChange={(e) => setVehiculoSeleccionadoId(Number(e.target.value))}
+                          disabled={guardandoReserva}
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '0.5rem',
+                            borderRadius: '4px',
+                            border: '1px solid var(--color-border)',
+                            backgroundColor: '#fff',
+                          }}
+                        >
+                          {vehiculos.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.matricula} {v.marca || v.modelo ? `— ${[v.marca, v.modelo, v.version].filter(Boolean).join(' ')}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="form-hint">Selecciona el vehículo con el que accederás a la plaza</span>
+                      </div>
+                    )}
+
                     <div className="form-grid">
                       <div className="form-group">
                         <label htmlFor="reserva-fecha-inicio">Inicio (hora peninsular)</label>
@@ -454,6 +571,45 @@ export const DetallePlaza: React.FC<Props> = ({
                     {finales.length === 2 && <label>Hora de fin repetida <select value={finRepetido} onChange={e=>setFinRepetido(Number(e.target.value))}><option value={0}>Primera (verano)</option><option value={1}>Segunda (invierno)</option></select></label>}
                     {fechaInicio && plaza.horario && <p>Horario del día: {franjasDelDia(plaza.horario,fechaInicio.slice(0,10)).map(f=>horaTexto(f.inicio)+'–'+horaTexto(f.fin)).join(', ') || 'Cerrado'}</p>}
                     <p role="status">{(fechaInicio && !inicioISO) || (fechaFin && !finISO) ? 'Esa hora no existe en España peninsular.' : consulta.clave === clave ? consulta.mensaje : inicioISO && finISO ? 'Comprobando horario…' : ''}</p>
+
+                    {/* Resumen del importe y duración antes de confirmar */}
+                    {calculoPrecio && (
+                      <div
+                        style={{
+                          marginTop: 'var(--spacing-xs)',
+                          marginBottom: 'var(--spacing-sm)',
+                          padding: '0.75rem',
+                          backgroundColor: '#EFF6FF',
+                          borderRadius: '6px',
+                          border: '1px solid #BFDBFE',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: '#1E40AF', display: 'block' }}>
+                            Duración de la reserva
+                          </span>
+                          <strong>
+                            {calculoPrecio.horasEnteras > 0 ? `${calculoPrecio.horasEnteras}h ` : ''}
+                            {calculoPrecio.minutosRestantes > 0 ? `${calculoPrecio.minutosRestantes}min` : ''}
+                            {calculoPrecio.horasEnteras === 0 && calculoPrecio.minutosRestantes === 0 ? 'Menos de 1 min' : ''}
+                          </strong>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '0.8rem', color: '#1E40AF', display: 'block' }}>
+                            Precio total estimado ({plaza.precioHora} €/h)
+                          </span>
+                          <strong style={{ fontSize: '1.25rem', color: 'var(--color-primary)' }}>
+                            {calculoPrecio.totalFormateado} €
+                          </strong>
+                        </div>
+                      </div>
+                    )}
+
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-sm)' }}>
                       <button
                         type="button"
@@ -466,7 +622,7 @@ export const DetallePlaza: React.FC<Props> = ({
                       <button
                         type="submit"
                         className="btn btn-primary btn-sm"
-                        disabled={guardandoReserva || !periodoDisponible}
+                        disabled={guardandoReserva || !periodoDisponible || vehiculos.length === 0}
                       >
                         {guardandoReserva ? 'Confirmando...' : 'Confirmar reserva'}
                       </button>
