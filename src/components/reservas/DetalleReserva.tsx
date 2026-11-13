@@ -103,6 +103,33 @@ export const DetalleReserva: React.FC<Props> = ({ reservaId, onCerrar }) => {
             </span>
           </div>
           <div className="dato-item">
+            <span className="dato-label">Vehículo</span>
+            <span className="dato-valor">
+              {reserva.vehiculo ? (
+                <span>
+                  <strong>{reserva.vehiculo.matricula}</strong>
+                  {reserva.vehiculo.marca || reserva.vehiculo.modelo
+                    ? ` (${[reserva.vehiculo.marca, reserva.vehiculo.modelo, reserva.vehiculo.version].filter(Boolean).join(' ')})`
+                    : ''}
+                </span>
+              ) : (
+                '—'
+              )}
+            </span>
+          </div>
+          <div className="dato-item">
+            <span className="dato-label">Importe total</span>
+            <span className="dato-valor">
+              {reserva.precioTotal != null ? (
+                <strong style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}>
+                  {Number(reserva.precioTotal).toFixed(2)} €
+                </strong>
+              ) : (
+                '—'
+              )}
+            </span>
+          </div>
+          <div className="dato-item">
             <span className="dato-label">Fecha y hora de inicio</span>
             <span className="dato-valor">{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</span>
           </div>

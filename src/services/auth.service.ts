@@ -163,3 +163,15 @@ export async function obtenerPerfil(): Promise<Usuario> {
   return manejarRespuesta<Usuario>(respuesta);
 }
 
+
+export async function actualizarNombre(nombre: string): Promise<Usuario> {
+  const respuesta = await fetch(`${API_URL}/usuarios/mi-perfil`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${obtenerToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre }),
+  });
+  const usuario = await manejarRespuesta<Usuario>(respuesta);
+  guardarUsuarioSesion(usuario);
+  notificarCambioAuth();
+  return usuario;
+}

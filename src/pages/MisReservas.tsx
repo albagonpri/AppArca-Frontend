@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { Reserva } from '../models/reserva.model';
 import type { PaginacionMeta } from '../models/paginacion.model';
-import { obtenerReservas } from '../services/reservas.service';
+import { formatearEstadoReserva, obtenerClaseBadgeEstado } from '../models/reserva.model';
+import { actualizarEstadoReserva, obtenerReservas } from '../services/reservas.service';
 import { Paginacion } from '../components/comun/Paginacion';
 
 export const MisReservas: React.FC = () => {
@@ -15,6 +16,25 @@ export const MisReservas: React.FC = () => {
   const [paginaActual, setPaginaActual] = useState<number>(1);
   const [limitePorPagina, setLimitePorPagina] = useState<number>(10);
   const [metaPaginacion, setMetaPaginacion] = useState<PaginacionMeta | null>(null);
+
+  const [abierta, setAbierta] = useState<number | null>(null);
+  const [rechazando, setRechazando] = useState(false);
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [revision, setRevision] = useState(0);
+  async function responder(id: number, estado: 'CONFIRMADA' | 'RECHAZADA') {
+    setEnviando(true);
+    setError(null);
+    try {
+      await actualizarEstadoReserva(id, estado, estado === 'RECHAZADA' ? motivo.trim() || undefined : undefined);
+      setAbierta(null);
+      setRevision(n => n + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo responder a la solicitud.');
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -54,9 +74,10 @@ export const MisReservas: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [tipo, filtroEstado, paginaActual, limitePorPagina]);
+  }, [tipo, filtroEstado, paginaActual, limitePorPagina, revision]);
 
   const handleCambiarTipo = (nuevoTipo: 'propias' | 'recibidas') => {
+    setAbierta(null);
     setTipo(nuevoTipo);
     setPaginaActual(1);
   };
@@ -74,20 +95,6 @@ export const MisReservas: React.FC = () => {
   const handleCambiarLimite = (nuevoLimite: number) => {
     setLimitePorPagina(nuevoLimite);
     setPaginaActual(1);
-  };
-
-  const obtenerClaseEstado = (estado: string) => {
-    switch (estado.toUpperCase()) {
-      case 'CONFIRMADA':
-      case 'COMPLETADA':
-        return 'badge badge-success';
-      case 'PENDIENTE':
-        return 'badge badge-warning';
-      case 'CANCELADA':
-        return 'badge badge-danger';
-      default:
-        return 'badge badge-neutral';
-    }
   };
 
   return (
@@ -127,7 +134,7 @@ export const MisReservas: React.FC = () => {
               className={`btn btn-sm ${tipo === 'recibidas' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => handleCambiarTipo('recibidas')}
             >
-              Reservas recibidas en mis plazas
+              Solicitudes recibidas en mis plazas
             </button>
           </div>
 
@@ -146,6 +153,7 @@ export const MisReservas: React.FC = () => {
               <option value="PENDIENTE">Pendientes</option>
               <option value="CONFIRMADA">Confirmadas</option>
               <option value="COMPLETADA">Completadas</option>
+              <option value="RECHAZADA">Rechazadas</option>
               <option value="CANCELADA">Canceladas</option>
             </select>
           </div>
@@ -181,37 +189,75 @@ export const MisReservas: React.FC = () => {
                     {tipo === 'recibidas' && <th>Conductor</th>}
                     <th>Plaza</th>
                     <th>Dirección</th>
+                    <th>Vehículo</th>
                     <th>Fecha Inicio</th>
                     <th>Fecha Fin</th>
+                    <th>Importe</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {reservas.map((reserva) => (
-                    <tr key={reserva.id}>
-                      <td>#{reserva.id}</td>
-                      {tipo === 'recibidas' && (
+                  {reservas.map((reserva) => {
+                    const textoVehiculo = reserva.vehiculo
+                      ? `${reserva.vehiculo.matricula}${reserva.vehiculo.marca ? ` (${reserva.vehiculo.marca} ${reserva.vehiculo.modelo || ''})` : ''}`
+                      : '—';
+                    const precioFormateado = reserva.precioTotal != null
+                      ? `${Number(reserva.precioTotal).toFixed(2)} €`
+                      : '—';
+
+                    return (
+                      <tr key={reserva.id}>
+                        <td>#{reserva.id}</td>
+                        {tipo === 'recibidas' && (
+                          <td>
+                            {reserva.usuario
+                              ? `${reserva.usuario.nombre} (${reserva.usuario.correo})`
+                              : `Usuario #${reserva.usuarioId}`}
+                          </td>
+                        )}
                         <td>
-                          {reserva.usuario
-                            ? `${reserva.usuario.nombre} (${reserva.usuario.correo})`
-                            : `Usuario #${reserva.usuarioId}`}
+                          <strong>
+                            {reserva.plaza?.titulo || `Plaza #${reserva.plazaId}`}
+                          </strong>
                         </td>
-                      )}
-                      <td>
-                        <strong>
-                          {reserva.plaza?.titulo || `Plaza #${reserva.plazaId}`}
-                        </strong>
-                      </td>
-                      <td>{reserva.plaza?.direccion || '—'}</td>
-                      <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
-                      <td>{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
-                      <td>
-                        <span className={obtenerClaseEstado(reserva.estado)}>
-                          {reserva.estado}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        <td>{reserva.plaza?.direccion || '—'}</td>
+                        <td>
+                          <span style={{ fontWeight: reserva.vehiculo ? 600 : 400 }}>
+                            {textoVehiculo}
+                          </span>
+                        </td>
+                        <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                        <td>{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                        <td>
+                          <strong style={{ color: reserva.precioTotal != null ? 'var(--color-primary)' : 'inherit' }}>
+                            {precioFormateado}
+                          </strong>
+                        </td>
+                        <td>
+                          {tipo === 'recibidas' && reserva.estado === 'PENDIENTE' ? <>
+                            <button type="button" className="btn btn-secondary btn-sm" disabled={enviando} aria-expanded={abierta === reserva.id}
+                              onClick={() => { setAbierta(abierta === reserva.id ? null : reserva.id); setRechazando(false); setMotivo(''); }}>
+                              Reservada · Pendiente de respuesta ▾
+                            </button>
+                            {abierta === reserva.id && <fieldset disabled={enviando} className="form-group">
+                              <legend>Responder a la solicitud</legend>
+                              {rechazando ? <>
+                                <label>Motivo del rechazo (opcional)
+                                  <textarea value={motivo} maxLength={500} onChange={e => setMotivo(e.target.value)} />
+                                </label>
+                                <button type="button" className="btn btn-primary" onClick={() => responder(reserva.id, 'RECHAZADA')}>Confirmar rechazo</button>
+                                <button type="button" className="btn btn-secondary" onClick={() => setRechazando(false)}>Volver</button>
+                              </> : <>
+                                <button type="button" className="btn btn-primary" onClick={() => responder(reserva.id, 'CONFIRMADA')}>Aceptar</button>
+                                <button type="button" className="btn btn-secondary" onClick={() => setRechazando(true)}>Rechazar</button>
+                              </>}
+                            </fieldset>}
+                          </> : <span className={obtenerClaseBadgeEstado(reserva.estado)}>{tipo === 'recibidas' && reserva.estado === 'CONFIRMADA' ? 'Reservada' : formatearEstadoReserva(reserva.estado)}</span>}
+                          {reserva.estado === 'RECHAZADA' && reserva.motivoRechazo && <p>Motivo: {reserva.motivoRechazo}</p>}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -155,7 +155,7 @@ export const TarjetaPlaza: React.FC<Props> = ({
             className="btn btn-secondary btn-sm"
             onClick={() => onEditar(plaza)}
           >
-            Editar
+            Editar plaza
           </button>
         )}
         {onEliminar && (

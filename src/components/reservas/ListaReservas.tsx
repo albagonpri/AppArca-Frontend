@@ -49,8 +49,10 @@ export const ListaReservas: React.FC<Props> = ({
               <th>ID</th>
               <th>Usuario</th>
               <th>Plaza</th>
+              <th>Vehículo</th>
               <th>Fecha de inicio</th>
               <th>Fecha de fin</th>
+              <th>Importe</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -77,8 +79,22 @@ export const ListaReservas: React.FC<Props> = ({
                     ? `${reserva.plaza.titulo} (#${reserva.plaza.id})`
                     : `Plaza #${reserva.plazaId}`}
                 </td>
+                <td>
+                  {reserva.vehiculo ? (
+                    <span>
+                      {reserva.vehiculo.matricula}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
                 <td>{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
                 <td>{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                <td>
+                  <strong>
+                    {reserva.precioTotal != null ? `${Number(reserva.precioTotal).toFixed(2)} €` : '—'}
+                  </strong>
+                </td>
                 <td>
                   <span className={obtenerClaseEstado(reserva.estado)}>
                     {reserva.estado}
