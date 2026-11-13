@@ -44,6 +44,7 @@ export interface Reserva {
   fechaInicio: string;
   fechaFin: string;
   estado: EstadoReserva | string;
+  motivoRechazo?: string | null;
   precioTotal?: number | string | null;
   fechaCreacion: string;
   fechaActualizacion: string;

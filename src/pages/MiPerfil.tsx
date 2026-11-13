@@ -1,13 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Usuario } from '../models/usuario.model';
-import { obtenerPerfil, eliminarToken } from '../services/auth.service';
+import { obtenerPerfil, eliminarToken, actualizarNombre } from '../services/auth.service';
 
 export const MiPerfil: React.FC = () => {
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [cargando, setCargando] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [nombre, setNombre] = useState('');
+  const [editando, setEditando] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [exito, setExito] = useState(false);
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nombre.trim()) { setError('Escribe tu nombre.'); return; }
+    setGuardando(true);
+    setError(null);
+    try {
+      setUsuario(await actualizarNombre(nombre.trim()));
+      setEditando(false);
+      setExito(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el nombre.');
+    } finally { setGuardando(false); }
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -69,6 +88,15 @@ export const MiPerfil: React.FC = () => {
       {!cargando && usuario && (
         <section className="page-section">
           <h2 className="section-title">Datos del Usuario</h2>
+          {exito && <p role="status" className="mensaje-alerta mensaje-exito">Nombre actualizado.</p>}
+          {editando ? <form onSubmit={guardar} className="form-group">
+            <label htmlFor="nombre-perfil">Nombre</label>
+            <input id="nombre-perfil" autoComplete="name" required value={nombre} onChange={e => setNombre(e.target.value)} disabled={guardando} />
+            <div className="modal-acciones">
+              <button type="submit" className="btn btn-primary" disabled={guardando || !nombre.trim()}>Guardar cambios</button>
+              <button type="button" className="btn btn-secondary" disabled={guardando} onClick={() => { setEditando(false); setError(null); }}>Cancelar</button>
+            </div>
+          </form> : <button type="button" className="btn btn-secondary" onClick={() => { setNombre(usuario.nombre); setEditando(true); setExito(false); }}>Editar perfil</button>}
           <div className="detalle-datos">
             <div className="dato-item">
               <span className="dato-label">Nombre</span>

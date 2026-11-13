@@ -156,12 +156,13 @@ export const FormularioPlaza: React.FC<Props> = ({
   const [descripcionEntrada, setDescripcionEntrada] = useState<string>(
     plazaAEditar?.descripcionEntrada || '',
   );
+  const [conflictoHorario, setConflictoHorario] = useState(false);
   const [disponible, setDisponible] = useState<boolean>(
     plazaAEditar?.disponible !== undefined ? plazaAEditar.disponible : true,
   );
 
   // ─── Fotografías de la plaza ───────────────────────────────
-  const [fotosExistentes] = useState<FotoPlaza[]>(
+  const [fotosExistentes, setFotosExistentes] = useState<FotoPlaza[]>(
     plazaAEditar?.fotos ? [...plazaAEditar.fotos] : [],
   );
   const [fotosNuevas, setFotosNuevas] = useState<File[]>([]);
@@ -718,6 +719,7 @@ export const FormularioPlaza: React.FC<Props> = ({
             });
             if (conflicto) {
               const inicio = new Date(conflicto.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid'});
+              setConflictoHorario(true);
               throw new Error('El cambio afectaría a la reserva del ' + inicio + ' (hora peninsular).');
             }
             hayMas = meta.hasNextPage;
@@ -731,7 +733,7 @@ export const FormularioPlaza: React.FC<Props> = ({
           precioHora: valPrecio.numero!,
           largo: valLargo.numero!,
           ancho: valAncho.numero!,
-          alturaMaxima: alturaMaximaNum,
+          alturaMaxima: alturaMaximaNum ?? null,
           numeroPlaza: numeroPlaza.trim(),
           planta: planta.trim(),
           indicacionesAcceso: indicacionesAcceso.trim(),
@@ -760,11 +762,9 @@ export const FormularioPlaza: React.FC<Props> = ({
 
         // Eliminar fotografías marcadas por el usuario
         for (const fotoId of fotosAEliminar) {
-          try {
-            await eliminarFotoPlaza(plazaAEditar.id, fotoId);
-          } catch {
-            // Continuar con las demás
-          }
+          await eliminarFotoPlaza(plazaAEditar.id, fotoId);
+          setFotosExistentes(prev => prev.filter(f => f.id !== fotoId));
+          setFotosAEliminar(prev => prev.filter(id => id !== fotoId));
         }
 
         // Subir nuevas fotografías seleccionadas
@@ -857,6 +857,10 @@ export const FormularioPlaza: React.FC<Props> = ({
       {error && (
         <div className="mensaje-alerta mensaje-error" role="alert">
           {error}
+          {plazaAEditar && conflictoHorario && <button type="button" className="btn btn-secondary" onClick={() => {
+            setHorario(plazaAEditar.horario ?? horarioCompleto()); setTipo(plazaAEditar.tipoDisponibilidad ?? 'HABITUAL');
+            setDisponible(plazaAEditar.disponible); setConflictoHorario(false); setError(null);
+          }}>Restaurar disponibilidad y conservar los demás cambios</button>}
         </div>
       )}
       {exito && (

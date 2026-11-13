@@ -1,5 +1,5 @@
 import { instantesMadrid } from '../../models/horaMadrid';
-import { franjasDelDia, horaTexto } from '../../models/horario';
+import { CalendarioReserva } from './CalendarioReserva';
 
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -220,6 +220,8 @@ export const DetallePlaza: React.FC<Props> = ({
     }
 
     try {
+      if (enviandoRef.current) return;
+      enviandoRef.current = true;
       setGuardandoReserva(true);
       await crearReserva({
         usuarioId: usuarioSesion.id,
@@ -229,7 +231,7 @@ export const DetallePlaza: React.FC<Props> = ({
         fechaFin: finDate.toISOString(),
       });
 
-      setExitoReserva('¡Reserva creada con éxito! Puedes gestionarla en tu panel de reservas.');
+      setExitoReserva('Solicitud enviada. Pendiente de respuesta del propietario.');
       setFechaInicio('');
       setFechaFin('');
     } catch (err) {
@@ -239,6 +241,7 @@ export const DetallePlaza: React.FC<Props> = ({
         setErrorReserva('Ocurrió un error al procesar tu solicitud de reserva.');
       }
     } finally {
+      enviandoRef.current = false;
       setGuardandoReserva(false);
     }
   };
@@ -543,6 +546,11 @@ export const DetallePlaza: React.FC<Props> = ({
                       </div>
                     )}
 
+                    <CalendarioReserva plazaId={plazaId} disabled={guardandoReserva} alCambiarDia={() => {
+                      setFechaInicio(''); setFechaFin('');
+                    }} alElegir={(inicio, fin, i, f) => {
+                      setFechaInicio(inicio); setFechaFin(fin); setInicioRepetido(i); setFinRepetido(f);
+                    }} />
                     <div className="form-grid">
                       <div className="form-group">
                         <label htmlFor="reserva-fecha-inicio">Inicio (hora peninsular)</label>
@@ -570,7 +578,6 @@ export const DetallePlaza: React.FC<Props> = ({
 
                     {inicios.length === 2 && <label>Hora de inicio repetida <select value={inicioRepetido} onChange={e=>setInicioRepetido(Number(e.target.value))}><option value={0}>Primera (verano)</option><option value={1}>Segunda (invierno)</option></select></label>}
                     {finales.length === 2 && <label>Hora de fin repetida <select value={finRepetido} onChange={e=>setFinRepetido(Number(e.target.value))}><option value={0}>Primera (verano)</option><option value={1}>Segunda (invierno)</option></select></label>}
-                    {fechaInicio && plaza.horario && <p>Horario del día: {franjasDelDia(plaza.horario,fechaInicio.slice(0,10)).map(f=>horaTexto(f.inicio)+'–'+horaTexto(f.fin)).join(', ') || 'Cerrado'}</p>}
                     <p role="status">{(fechaInicio && !inicioISO) || (fechaFin && !finISO) ? 'Esa hora no existe en España peninsular.' : consulta.clave === clave ? consulta.mensaje : inicioISO && finISO ? 'Comprobando horario…' : ''}</p>
 
                     {/* Resumen del importe y duración antes de confirmar */}
@@ -602,7 +609,7 @@ export const DetallePlaza: React.FC<Props> = ({
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <span style={{ fontSize: '0.8rem', color: '#1E40AF', display: 'block' }}>
-                            Precio total estimado ({plaza.precioHora} €/h)
+                            Precio total ({plaza.precioHora} €/h)
                           </span>
                           <strong style={{ fontSize: '1.25rem', color: 'var(--color-primary)' }}>
                             {calculoPrecio.totalFormateado} €
@@ -634,6 +641,8 @@ export const DetallePlaza: React.FC<Props> = ({
             )}
           </div>
 
+          {esPropietario && <CalendarioReserva plazaId={plazaId} propietario />}
+
           {/* Historial de reservas solo para el propietario */}
           {esPropietario && reservas.length > 0 && (
             <div className="subseccion-detalle">
@@ -661,7 +670,7 @@ export const DetallePlaza: React.FC<Props> = ({
                         <td>{new Date(r.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
                         <td>{new Date(r.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
                         <td>
-                          <span className="badge badge-warning">{r.estado}</span>
+                          <span className="badge badge-warning">{r.estado === 'CONFIRMADA' ? 'Reservada' : r.estado === 'PENDIENTE' ? 'Reservada (pendiente de respuesta)' : r.estado}</span>
                         </td>
                       </tr>
                     ))}

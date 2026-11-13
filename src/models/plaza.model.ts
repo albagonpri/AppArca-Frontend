@@ -161,7 +161,7 @@ export interface ActualizarPlazaDto {
   tieneCamaras?: boolean;
   estaCubierta?: boolean;
   tieneCargadorElectrico?: boolean;
-  alturaMaxima?: number;
+  alturaMaxima?: number | null;
   disponible?: boolean;
 }
 

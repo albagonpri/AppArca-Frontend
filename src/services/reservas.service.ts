@@ -71,11 +71,19 @@ export async function consultarDisponibilidad(id:number, inicio:string, fin:stri
 export async function actualizarEstadoReserva(
   id: number,
   estado: EstadoReserva,
+  motivoRechazo?: string,
 ): Promise<Reserva> {
   const respuesta = await fetch(`${API_URL}/reservas/${id}`, {
     method: 'PATCH',
     headers: obtenerCabecerasAuth(),
-    body: JSON.stringify({ estado }),
+    body: JSON.stringify({ estado, motivoRechazo }),
   });
   return manejarRespuesta<Reserva>(respuesta);
+}
+
+export async function consultarFranjas(id: number, fecha: string, signal: AbortSignal) {
+  const respuesta = await fetch(`${API_URL}/reservas/franjas/${id}?fecha=${encodeURIComponent(fecha)}`, {
+    headers: obtenerCabecerasAuth(), signal, cache: 'no-store',
+  });
+  return manejarRespuesta<{inicio: number; fin: number; estado?: EstadoReserva}[]>(respuesta);
 }
