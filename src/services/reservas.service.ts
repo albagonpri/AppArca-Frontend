@@ -59,3 +59,11 @@ export async function crearReserva(datos: CrearReservaDto): Promise<Reserva> {
   });
   return manejarRespuesta<Reserva>(respuesta);
 }
+
+export async function consultarDisponibilidad(id:number, inicio:string, fin:string, signal:AbortSignal) {
+  const query = new URLSearchParams({inicio,fin});
+  const respuesta = await fetch(`${API_URL}/reservas/disponibilidad/${id}?${query}`, {
+    headers: obtenerCabecerasAuth(), cache:'no-store', signal,
+  });
+  return manejarRespuesta<{disponible:boolean}>(respuesta);
+}

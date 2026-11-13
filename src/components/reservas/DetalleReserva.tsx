@@ -104,11 +104,11 @@ export const DetalleReserva: React.FC<Props> = ({ reservaId, onCerrar }) => {
           </div>
           <div className="dato-item">
             <span className="dato-label">Fecha y hora de inicio</span>
-            <span className="dato-valor">{new Date(reserva.fechaInicio).toLocaleString()}</span>
+            <span className="dato-valor">{new Date(reserva.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</span>
           </div>
           <div className="dato-item">
             <span className="dato-label">Fecha y hora de fin</span>
-            <span className="dato-valor">{new Date(reserva.fechaFin).toLocaleString()}</span>
+            <span className="dato-valor">{new Date(reserva.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</span>
           </div>
           <div className="dato-item">
             <span className="dato-label">Fecha de creación</span>

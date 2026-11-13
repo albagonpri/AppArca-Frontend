@@ -1,3 +1,5 @@
+import { EditorHorario } from './EditorHorario';
+import { type TipoDisponibilidad, cubrePeriodo, horarioCompleto, validarHorario } from '../../models/horario';
 import React, { useState, useCallback, useRef } from 'react';
 import type {
   Plaza,
@@ -10,6 +12,7 @@ import { MOTIVOS_ENTRADA_DIFICIL } from '../../models/plaza.model';
 import {
   crearPlaza,
   actualizarPlaza,
+  obtenerReservasPlaza,
   subirFotosPlaza,
   eliminarFotoPlaza,
   obtenerUrlFoto,
@@ -21,6 +24,7 @@ import {
 } from '../../services/auth.service';
 import {
   buscarDireccion,
+  direccionDelPunto,
   consultarCodigoPostal,
   type CandidatoGeocodificacion,
 } from '../../services/geocodificacion.service';
@@ -40,6 +44,11 @@ export const FormularioPlaza: React.FC<Props> = ({
   onCancelar,
 }) => {
   const esEdicion = Boolean(plazaAEditar);
+
+  const [tipo, setTipo] = useState<TipoDisponibilidad | null>(
+    plazaAEditar ? plazaAEditar.tipoDisponibilidad ?? 'HABITUAL' : null
+  );
+  const [horario, setHorario] = useState(() => plazaAEditar?.horario ?? horarioCompleto());
 
   // ─── Datos básicos ────────────────────────────────────────
   const [titulo, setTitulo] = useState<string>(plazaAEditar?.titulo || '');
@@ -96,6 +105,14 @@ export const FormularioPlaza: React.FC<Props> = ({
   const [poblacionesDisponibles, setPoblacionesDisponibles] = useState<string[]>([]);
 
   // Referencia para evitar búsquedas automáticas repetidas de la misma dirección al perder foco
+  const revisionGeo = useRef(0);
+  const puntoConsultado = useRef('');
+  const [leyendoDireccion, setLeyendoDireccion] = useState(false);
+  const cancelarConsulta = useCallback(() => {
+    revisionGeo.current++;
+    setLeyendoDireccion(false);
+    setBuscandoGeo(false);
+  }, []);
   const ultimaDireccionBuscadaRef = useRef<string>('');
 
   // ─── Dimensiones ──────────────────────────────────────────
@@ -246,13 +263,14 @@ export const FormularioPlaza: React.FC<Props> = ({
 
   /** Invalida la confirmación cuando el usuario modifica cualquier campo de dirección. */
   const invalidarConfirmacion = useCallback(() => {
+    cancelarConsulta();
     setUbicacionConfirmada(false);
     setCandidatos([]);
     setMostrarCandidatos(false);
     setCandidatoSeleccionado(null);
     setErrorGeo(null);
     setMensajeGeoExito(null);
-  }, []);
+  }, [cancelarConsulta]);
 
   const handleCambioCalle = (v: string) => { setCalle(v); invalidarConfirmacion(); };
   const handleCambioNumero = (v: string) => { setNumero(v); invalidarConfirmacion(); };
@@ -371,6 +389,8 @@ export const FormularioPlaza: React.FC<Props> = ({
   };
 
   const handleModificarDireccionChange = (checked: boolean) => {
+    cancelarConsulta();
+    puntoConsultado.current = '';
     setModificarDireccion(checked);
     if (checked) {
       // Al modificar la dirección, conservamos las coordenadas previas en el mapa para no perder la referencia
@@ -418,6 +438,9 @@ export const FormularioPlaza: React.FC<Props> = ({
     }
 
     const claveBusqueda = `${direccionActual.calle.trim()}|${direccionActual.numero?.trim() || ''}|${direccionActual.codigoPostal?.trim() || ''}|${direccionActual.ciudad?.trim() || ''}|${direccionActual.poblacion?.trim() || ''}|${direccionActual.provincia?.trim() || ''}`;
+    cancelarConsulta();
+    puntoConsultado.current = '';
+    const revision = revisionGeo.current;
     ultimaDireccionBuscadaRef.current = claveBusqueda;
 
     try {
@@ -431,6 +454,7 @@ export const FormularioPlaza: React.FC<Props> = ({
         provincia: direccionActual.provincia?.trim() || undefined,
       });
 
+      if (revision !== revisionGeo.current) return;
       if (resultados.length === 0) {
         setErrorGeo(
           'CartoCiudad no encontró la dirección exacta. Puedes situar el marcador manualmente en el mapa sobre la entrada del garaje.',
@@ -455,11 +479,12 @@ export const FormularioPlaza: React.FC<Props> = ({
         );
       }
     } catch (err: unknown) {
+      if (revision !== revisionGeo.current) return;
       const msg = err instanceof Error ? err.message : 'Error al conectar con el servicio de geocodificación.';
       setErrorGeo(`${msg} Puedes situar el marcador manualmente en el mapa.`);
       setCoordenadasMapa((prev) => prev ?? { latitud: 40.416775, longitud: -3.70379 });
     } finally {
-      setBuscandoGeo(false);
+      if (revision === revisionGeo.current) setBuscandoGeo(false);
     }
   };
 
@@ -482,7 +507,7 @@ export const FormularioPlaza: React.FC<Props> = ({
       numero.trim() &&
       codigoPostal.trim() &&
       ciudad.trim() &&
-      !buscandoGeo
+      !buscandoGeo && !puntoConsultado.current && !leyendoDireccion
     ) {
       const claveActual = `${calle.trim()}|${numero.trim()}|${codigoPostal.trim()}|${ciudad.trim()}|${poblacion.trim()}|${provincia.trim()}`;
       if (claveActual !== ultimaDireccionBuscadaRef.current) {
@@ -492,6 +517,8 @@ export const FormularioPlaza: React.FC<Props> = ({
   };
 
   const seleccionarCandidato = (candidato: CandidatoGeocodificacion) => {
+    cancelarConsulta();
+    puntoConsultado.current = '';
     setCoordenadasMapa({ latitud: candidato.latitud, longitud: candidato.longitud });
     setCandidatoSeleccionado(candidato.id);
     setUbicacionConfirmada(false);
@@ -501,21 +528,60 @@ export const FormularioPlaza: React.FC<Props> = ({
   };
 
   const handleCambioMapa = (coords: CoordenadasMapa) => {
+    puntoConsultado.current = '';
     setCoordenadasMapa(coords);
     setCandidatoSeleccionado(null);
     setUbicacionConfirmada(false);
-    setErrorGeo(null);
-    setMensajeGeoExito(
-      'Ubicación ajustada manualmente en el mapa. Pulsa "Confirmar ubicación" para fijar la entrada del garaje.',
-    );
+    void consultarPunto(coords, false);
   };
 
   const handleConfirmarUbicacion = () => {
-    if (!coordenadasMapa) return;
-    setUbicacionConfirmada(true);
+    if (coordenadasMapa) void consultarPunto(coordenadasMapa, true);
+  };
+
+  const consultarPunto = async ({ latitud, longitud }: CoordenadasMapa, confirmar: boolean) => {
+    const clave = latitud + ',' + longitud;
+    cancelarConsulta();
+    abortCtrlCPRef.current?.abort();
+    peticionCPIdRef.current++;
+    setBuscandoCP(false);
+    setErrorCP(null);
+    setMensajeCPExito(null);
+    setPoblacionesDisponibles([]);
     setMostrarCandidatos(false);
-    setMensajeGeoExito('Ubicación confirmada correctamente.');
     setErrorGeo(null);
+    if (puntoConsultado.current === clave) {
+      setUbicacionConfirmada(true);
+      setMensajeGeoExito('Ubicación confirmada.');
+      return;
+    }
+    const revision = revisionGeo.current;
+    setLeyendoDireccion(true);
+    setMensajeGeoExito(null);
+    try {
+      const d = await direccionDelPunto(latitud, longitud);
+      if (revision !== revisionGeo.current) return;
+      // Al buscar por texto, conserva los datos escritos que el proveedor no devuelve.
+      const desdeBusqueda = confirmar && candidatoSeleccionado !== null;
+      setCalle(d.calle || (desdeBusqueda ? calle : ''));
+      setNumero(d.numero || (desdeBusqueda ? numero : ''));
+      setCodigoPostal(d.codigoPostal || (desdeBusqueda ? codigoPostal : ''));
+      setCiudad(d.municipio || (desdeBusqueda ? ciudad : ''));
+      setPoblacion(d.poblacion || (desdeBusqueda ? poblacion : ''));
+      setProvincia(d.provincia || (desdeBusqueda ? provincia : ''));
+      puntoConsultado.current = clave;
+      setMensajeGeoExito(!confirmar ? 'Revisa la dirección y confirma la ubicación.' : Object.values(d).every(Boolean)
+        ? 'Ubicación confirmada. Revisa la dirección y el portal.'
+        : 'Ubicación confirmada. Completa los datos de dirección que falten.');
+    } catch {
+      if (revision !== revisionGeo.current) return;
+      setErrorGeo(confirmar ? 'Punto confirmado. Revisa o completa la dirección manualmente.' : 'No se pudo recuperar la dirección. Al confirmar se volverá a intentar.');
+    } finally {
+      if (revision === revisionGeo.current) {
+        setUbicacionConfirmada(confirmar);
+        setLeyendoDireccion(false);
+      }
+    }
   };
 
   // ─── Submit ──────────────────────────────────────────────
@@ -523,6 +589,10 @@ export const FormularioPlaza: React.FC<Props> = ({
     e.preventDefault();
     setError(null);
     setExito(null);
+
+    if (!tipo) { setError('Selecciona la modalidad de disponibilidad.'); return; }
+    const errorHorario = validarHorario(horario, tipo);
+    if (errorHorario) { setError(errorHorario); return; }
 
     // Validación de usuario activo
     let idUsuario = obtenerUsuarioSesion()?.id;
@@ -622,7 +692,27 @@ export const FormularioPlaza: React.FC<Props> = ({
       setCargando(true);
 
       if (esEdicion && plazaAEditar) {
+        const cambiaHorario = tipo !== (plazaAEditar.tipoDisponibilidad ?? 'HABITUAL') || JSON.stringify(horario) !== JSON.stringify(plazaAEditar.horario ?? horarioCompleto());
+        if (cambiaHorario || (plazaAEditar.disponible && !disponible)) {
+          let page = 1;
+          let hayMas = true;
+          while (hayMas) {
+            const {data, meta} = await obtenerReservasPlaza(plazaAEditar.id, {page, limit:100});
+            const conflicto = data.find(r => {
+              const fin = new Date(r.fechaFin);
+              return (r.estado === 'CONFIRMADA' || r.estado === 'PENDIENTE') && +fin > Date.now()
+                && (!disponible || !cubrePeriodo(horario, new Date(r.fechaInicio), fin));
+            });
+            if (conflicto) {
+              const inicio = new Date(conflicto.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid'});
+              throw new Error('El cambio afectaría a la reserva del ' + inicio + ' (hora peninsular).');
+            }
+            hayMas = meta.hasNextPage;
+            page++;
+          }
+        }
         const dtoActualizar: ActualizarPlazaDto = {
+          ...(cambiaHorario && { horario, tipoDisponibilidad: tipo }),
           titulo: tituloTrim,
           descripcion: descripcionTrim,
           precioHora: valPrecio.numero!,
@@ -679,6 +769,8 @@ export const FormularioPlaza: React.FC<Props> = ({
         else if (onPlazaCreada) onPlazaCreada();
       } else {
         const dtoCrear: CrearPlazaDto = {
+          tipoDisponibilidad: tipo,
+          horario,
           titulo: tituloTrim,
           descripcion: descripcionTrim,
           calle: calle.trim(),
@@ -719,6 +811,8 @@ export const FormularioPlaza: React.FC<Props> = ({
         setPreviewsNuevas([]);
         setFotosAEliminar([]);
         setErrorFotos(null);
+        setTipo(null);
+        setHorario(horarioCompleto());
         setTitulo(''); setDescripcion(''); setCalle(''); setNumero('');
         setCodigoPostal(''); setCiudad(''); setPoblacion(''); setProvincia(''); setPrecioHora('');
         setNumeroPlaza(''); setPlanta(''); setIndicacionesAcceso('');
@@ -868,10 +962,10 @@ export const FormularioPlaza: React.FC<Props> = ({
         {/* Campos de dirección (creación siempre, edición solo si modificarDireccion) */}
         {debeVerDireccion && (
           <>
-            <p className="form-hint" style={{ marginBottom: 'var(--spacing-sm)' }}>
+            {esEdicion && <p className="form-hint" style={{ marginBottom: 'var(--spacing-sm)' }}>
               Introduce la dirección postal para localizarla automáticamente con CartoCiudad o
               sitúa el marcador directamente en el mapa sobre la entrada del garaje.
-            </p>
+            </p>}
 
             <div className="form-grid">
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -921,9 +1015,9 @@ export const FormularioPlaza: React.FC<Props> = ({
                   disabled={cargando}
                   required
                 />
-                <span className="form-hint">
+                {esEdicion && <span className="form-hint">
                   Introduce 5 dígitos para autocompletar municipio y provincia
-                </span>
+                </span>}
                 {buscandoCP && (
                   <span className="form-hint" style={{ color: 'var(--color-primary)' }}>
                     ⏳ Consultando código postal...
@@ -955,7 +1049,7 @@ export const FormularioPlaza: React.FC<Props> = ({
                   disabled={cargando}
                   required
                 />
-                <span className="form-hint">Municipio oficial (autocompletado por CP)</span>
+                {esEdicion && <span className="form-hint">Municipio oficial (autocompletado por CP)</span>}
               </div>
 
               <div className="form-group">
@@ -1003,7 +1097,7 @@ export const FormularioPlaza: React.FC<Props> = ({
                     </select>
                   </div>
                 )}
-                <span className="form-hint">Núcleo urbano, pedanía o localidad</span>
+                {esEdicion && <span className="form-hint">Núcleo urbano, pedanía o localidad</span>}
               </div>
 
               <div className="form-group">
@@ -1162,9 +1256,10 @@ export const FormularioPlaza: React.FC<Props> = ({
                   id="plaza-confirmar-ubicacion"
                   type="button"
                   className="btn btn-primary"
+                  disabled={leyendoDireccion || cargando}
                   onClick={handleConfirmarUbicacion}
                 >
-                  ✅ Confirmar ubicación en el mapa
+                  {leyendoDireccion ? 'Buscando dirección…' : '✅ Confirmar ubicación en el mapa'}
                 </button>
               </div>
             )}
@@ -1335,7 +1430,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Indica si la plaza está a cubierto o al aire libre</span>
         </div>
 
         {/* ¿Dispone de cargador para vehículos eléctricos? */}
@@ -1367,7 +1461,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Permite a los usuarios con vehículos enchufables saber si pueden cargar la batería</span>
         </div>
 
         {/* ¿Dispone de cámaras de seguridad? */}
@@ -1399,7 +1492,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Indica si el parking cuenta con sistema de videovigilancia</span>
         </div>
 
         {/* ¿Tiene una entrada difícil? */}
@@ -1431,7 +1523,6 @@ export const FormularioPlaza: React.FC<Props> = ({
               <span>No</span>
             </label>
           </div>
-          <span className="form-hint">Advierte a conductores de vehículos grandes o bajos si el acceso requiere maniobra o precaución</span>
         </div>
 
         {/* Apartado adicional con los motivos de entrada difícil */}
@@ -1507,6 +1598,8 @@ export const FormularioPlaza: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      <EditorHorario tipo={tipo} seleccionar={setTipo} horario={horario} cambiar={setHorario} disabled={cargando} />
 
       {/* ── Sección: Fotografías de la plaza ── */}
       <div className="form-seccion" style={{ marginTop: 'var(--spacing-md)' }}>
@@ -1594,7 +1687,7 @@ export const FormularioPlaza: React.FC<Props> = ({
               className="btn btn-secondary btn-sm"
               style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
             >
-              <span>📷</span> Seleccionar fotos o tomar foto
+              Hacer o seleccionar fotos
             </label>
             <input
               id="plaza-input-fotos"

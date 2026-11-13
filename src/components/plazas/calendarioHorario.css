@@ -1,0 +1,128 @@
+.cal-semana,
+.cal-mes {
+  margin-block: 1rem;
+}
+.cal-fila {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem;
+  margin-block: 0.25rem;
+}
+.cal-fila > button,
+.cal-nav button,
+.cal-cuadricula button {
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-text-main);
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-surface);
+  min-height: 2.5rem;
+}
+.cal-escala {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 6.4rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+.cal-banda {
+  position: relative;
+  height: 2rem;
+  background-color: var(--color-border);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 calc(25% - 1px),
+    var(--color-surface) calc(25% - 1px) 25%
+  );
+  border-radius: 0.35rem;
+}
+.cal-bloque {
+  position: absolute;
+  top: 0.2rem;
+  bottom: 0.2rem;
+  background: var(--color-accent);
+  border-radius: 0.3rem;
+  border: 1px solid var(--color-surface);
+  padding: 0;
+}
+button.cal-bloque {
+  cursor: pointer;
+}
+.cal-bloque.bloqueo {
+  background: repeating-linear-gradient(135deg, #904621 0 4px, #c98452 4px 8px);
+}
+.cal-mes {
+  max-width: 34rem;
+}
+.cal-nav,
+.cal-leyenda {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.cal-nav {
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+.cal-nav strong::first-letter {
+  text-transform: uppercase;
+}
+.cal-nav button {
+  width: 2.6rem;
+  font-size: 1.4rem;
+}
+.cal-cuadricula {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.2rem;
+  text-align: center;
+}
+.cal-cuadricula abbr {
+  text-decoration: none;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+.cal-cuadricula button {
+  padding: 0.15rem;
+}
+.cal-cuadricula .ofrecida {
+  background: var(--color-accent);
+  color: var(--color-text-main);
+  font-weight: 700;
+}
+.cal-cuadricula [aria-pressed="true"],
+.cal-fila [aria-pressed="true"] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+.cal-leyenda {
+  flex-wrap: wrap;
+  font-size: 0.8rem;
+  margin-top: 0.7rem;
+}
+.cal-leyenda span::before {
+  content: "";
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.3rem;
+  border-radius: 0.15rem;
+  background: var(--color-accent);
+}
+.cal-leyenda span + span::before {
+  background: var(--color-border);
+}
+
+.cal-hueco {
+  position: absolute;
+  inset-block: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: crosshair;
+}
+.cal-hueco:hover {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}

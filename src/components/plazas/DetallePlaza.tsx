@@ -1,10 +1,13 @@
+import { instantesMadrid } from '../../models/horaMadrid';
+import { franjasDelDia, horaTexto } from '../../models/horario';
+
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { Plaza } from '../../models/plaza.model';
 import { obtenerEtiquetaDificultad } from '../../models/plaza.model';
 import type { Reserva } from '../../models/reserva.model';
 import { obtenerPlazaPorId, obtenerReservasPlaza } from '../../services/plazas.service';
-import { crearReserva } from '../../services/reservas.service';
+import { crearReserva, consultarDisponibilidad } from '../../services/reservas.service';
 import { useAuth } from '../../context/useAuth';
 import { obtenerUsuarioSesion } from '../../services/auth.service';
 import { BotonFavorito } from './BotonFavorito';
@@ -35,9 +38,43 @@ export const DetallePlaza: React.FC<Props> = ({
   const [mostrarAvisoLogin, setMostrarAvisoLogin] = useState<boolean>(false);
   const [fechaInicio, setFechaInicio] = useState<string>('');
   const [fechaFin, setFechaFin] = useState<string>('');
+  const [exitoReserva, setExitoReserva] = useState<string | null>(null);
+  const [inicioRepetido, setInicioRepetido] = useState(0);
+  const [finRepetido, setFinRepetido] = useState(0);
+  const inicios = instantesMadrid(fechaInicio);
+  const finales = instantesMadrid(fechaFin);
+  const inicioISO = inicios[inicioRepetido]?.toISOString() ?? '';
+  const finISO = finales[finRepetido]?.toISOString() ?? '';
+  const clave = [plazaId,inicioISO,finISO].join('/');
+  const [consulta, setConsulta] = useState({clave:'', disponible:false, mensaje:''});
+  useEffect(() => {
+    if (exitoReserva || !mostrarFormularioReserva || !autenticado || !inicioISO || !finISO) return;
+    const control = new AbortController();
+    let secuencia = 0;
+    const comprobar = async () => {
+      const actual = ++secuencia;
+      try {
+        await consultarDisponibilidad(plazaId, inicioISO, finISO, control.signal);
+        if (actual === secuencia && !control.signal.aborted)
+          setConsulta({clave, disponible:true, mensaje:'Horario disponible'});
+      } catch (error) {
+        if (actual === secuencia && !control.signal.aborted)
+          setConsulta({clave, disponible:false, mensaje:error instanceof Error ? error.message : 'No se pudo consultar la disponibilidad.'});
+      }
+    };
+    void comprobar();
+    window.addEventListener('focus', comprobar);
+    const intervalo = window.setInterval(comprobar, 15000);
+    return () => {
+      control.abort();
+      window.clearInterval(intervalo);
+      window.removeEventListener('focus', comprobar);
+    };
+  }, [plazaId,inicioISO,finISO,clave,mostrarFormularioReserva,autenticado,exitoReserva]);
+  const periodoDisponible = consulta.clave === clave && consulta.disponible;
   const [guardandoReserva, setGuardandoReserva] = useState<boolean>(false);
   const [errorReserva, setErrorReserva] = useState<string | null>(null);
-  const [exitoReserva, setExitoReserva] = useState<string | null>(null);
+
 
   useEffect(() => {
     let activo = true;
@@ -101,13 +138,13 @@ export const DetallePlaza: React.FC<Props> = ({
     setErrorReserva(null);
     setExitoReserva(null);
 
-    if (!fechaInicio || !fechaFin) {
+    if (!periodoDisponible || !fechaInicio || !fechaFin) {
       setErrorReserva('Por favor, selecciona las fechas y horas de inicio y fin.');
       return;
     }
 
-    const inicioDate = new Date(fechaInicio);
-    const finDate = new Date(fechaFin);
+    const inicioDate = new Date(inicioISO);
+    const finDate = new Date(finISO);
 
     if (isNaN(inicioDate.getTime()) || isNaN(finDate.getTime())) {
       setErrorReserva('Las fechas introducidas no son válidas.');
@@ -156,14 +193,18 @@ export const DetallePlaza: React.FC<Props> = ({
 
   return (
     <div className="detalle-container">
-      <div className="detalle-header">
-        <h3 className="detalle-title">Detalle de la Plaza #{plazaId}</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <BotonFavorito plazaId={plazaId} tamano="md" mostrarTexto={true} />
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onCerrar}>
-            Cerrar detalle
-          </button>
-        </div>
+      <div className="detalle-header detalle-plaza-header">
+        <h3 id="modal-detalle-plaza-titulo" className="detalle-title">Detalle de la Plaza</h3>
+        <BotonFavorito plazaId={plazaId} tamano="md" mostrarTexto={true} />
+        <button
+          type="button"
+          className="btn btn-secondary detalle-plaza-cerrar"
+          onClick={onCerrar}
+          aria-label="Cerrar detalle de la plaza"
+          title="Cerrar detalle de la plaza"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
       </div>
 
       {cargando && <p className="loading-text">Cargando información de la plaza...</p>}
@@ -215,12 +256,6 @@ export const DetallePlaza: React.FC<Props> = ({
                     ? `${plaza.propietario.nombre} (${plaza.propietario.correo})`
                     : plaza.propietario.nombre
                   : `ID #${plaza.propietarioId}`}
-              </span>
-            </div>
-            <div className="dato-item">
-              <span className="dato-label">Coordenadas</span>
-              <span className="dato-valor">
-                Lat: {plaza.latitud} | Lon: {plaza.longitud}
               </span>
             </div>
             <div className="dato-item">
@@ -285,10 +320,6 @@ export const DetallePlaza: React.FC<Props> = ({
                 </span>
               </div>
             )}
-            <div className="dato-item">
-              <span className="dato-label">Fecha de creación</span>
-              <span className="dato-valor">{new Date(plaza.fechaCreacion).toLocaleString()}</span>
-            </div>
           </div>
 
           {/* ── Bloque de Acción: Reservar Plaza ── */}
@@ -396,29 +427,33 @@ export const DetallePlaza: React.FC<Props> = ({
                   <>
                     <div className="form-grid">
                       <div className="form-group">
-                        <label htmlFor="reserva-fecha-inicio">Fecha y hora de inicio</label>
+                        <label htmlFor="reserva-fecha-inicio">Inicio (hora peninsular)</label>
                         <input
                           id="reserva-fecha-inicio"
                           type="datetime-local"
                           value={fechaInicio}
-                          onChange={(e) => setFechaInicio(e.target.value)}
+                          onChange={(e) => { setFechaInicio(e.target.value); setInicioRepetido(0); }}
                           disabled={guardandoReserva}
                           required
                         />
                       </div>
                       <div className="form-group">
-                        <label htmlFor="reserva-fecha-fin">Fecha y hora de fin</label>
+                        <label htmlFor="reserva-fecha-fin">Fin (hora peninsular)</label>
                         <input
                           id="reserva-fecha-fin"
                           type="datetime-local"
                           value={fechaFin}
-                          onChange={(e) => setFechaFin(e.target.value)}
+                          onChange={(e) => { setFechaFin(e.target.value); setFinRepetido(0); }}
                           disabled={guardandoReserva}
                           required
                         />
                       </div>
                     </div>
 
+                    {inicios.length === 2 && <label>Hora de inicio repetida <select value={inicioRepetido} onChange={e=>setInicioRepetido(Number(e.target.value))}><option value={0}>Primera (verano)</option><option value={1}>Segunda (invierno)</option></select></label>}
+                    {finales.length === 2 && <label>Hora de fin repetida <select value={finRepetido} onChange={e=>setFinRepetido(Number(e.target.value))}><option value={0}>Primera (verano)</option><option value={1}>Segunda (invierno)</option></select></label>}
+                    {fechaInicio && plaza.horario && <p>Horario del día: {franjasDelDia(plaza.horario,fechaInicio.slice(0,10)).map(f=>horaTexto(f.inicio)+'–'+horaTexto(f.fin)).join(', ') || 'Cerrado'}</p>}
+                    <p role="status">{(fechaInicio && !inicioISO) || (fechaFin && !finISO) ? 'Esa hora no existe en España peninsular.' : consulta.clave === clave ? consulta.mensaje : inicioISO && finISO ? 'Comprobando horario…' : ''}</p>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-sm)' }}>
                       <button
                         type="button"
@@ -431,7 +466,7 @@ export const DetallePlaza: React.FC<Props> = ({
                       <button
                         type="submit"
                         className="btn btn-primary btn-sm"
-                        disabled={guardandoReserva}
+                        disabled={guardandoReserva || !periodoDisponible}
                       >
                         {guardandoReserva ? 'Confirmando...' : 'Confirmar reserva'}
                       </button>
@@ -466,8 +501,8 @@ export const DetallePlaza: React.FC<Props> = ({
                             ? `${r.usuario.nombre} (#${r.usuario.id})`
                             : `Usuario #${r.usuarioId}`}
                         </td>
-                        <td>{new Date(r.fechaInicio).toLocaleString()}</td>
-                        <td>{new Date(r.fechaFin).toLocaleString()}</td>
+                        <td>{new Date(r.fechaInicio).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
+                        <td>{new Date(r.fechaFin).toLocaleString('es-ES', {timeZone:'Europe/Madrid', timeZoneName:'short'})}</td>
                         <td>
                           <span className="badge badge-warning">{r.estado}</span>
                         </td>

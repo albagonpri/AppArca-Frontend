@@ -366,7 +366,6 @@ export const FormularioVehiculo: React.FC<Props> = ({
               placeholder="Ej. 4.63"
               disabled={cargando}
             />
-            <span className="form-hint">En metros. Ej. 4.63</span>
           </div>
 
           <div className="form-group">
@@ -381,7 +380,6 @@ export const FormularioVehiculo: React.FC<Props> = ({
               placeholder="Ej. 1.78"
               disabled={cargando}
             />
-            <span className="form-hint">En metros. Ej. 1.78</span>
           </div>
 
           <div className="form-group">
@@ -396,7 +394,6 @@ export const FormularioVehiculo: React.FC<Props> = ({
               placeholder="Ej. 1.45"
               disabled={cargando}
             />
-            <span className="form-hint">En metros. Ej. 1.45</span>
           </div>
         </div>
       </div>
@@ -440,9 +437,6 @@ export const FormularioVehiculo: React.FC<Props> = ({
                 </option>
               ))}
             </select>
-            <span className="form-hint">
-              Siempre confirmable y editable por el usuario.
-            </span>
           </div>
 
           <div className="form-group form-group-checkbox">
@@ -456,9 +450,6 @@ export const FormularioVehiculo: React.FC<Props> = ({
               />
               <span>¿Es vehículo enchufable? (PHEV o 100% eléctrico)</span>
             </label>
-            <span className="form-hint">
-              Permite identificar necesidad de puntos de recarga en plazas.
-            </span>
           </div>
 
           <div className="form-group form-group-checkbox">
@@ -472,9 +463,6 @@ export const FormularioVehiculo: React.FC<Props> = ({
               />
               <span>¿Tiene suspensión baja?</span>
             </label>
-            <span className="form-hint">
-              Permite avisar de rampas pronunciadas o badenes al reservar.
-            </span>
           </div>
         </div>
       </div>
