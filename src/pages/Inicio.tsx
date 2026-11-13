@@ -1,4 +1,6 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '../context/useAuth';
+import { obtenerToken } from '../services/auth.service';
 import { useSearchParams } from 'react-router-dom';
 import type { Plaza, FiltrosPlazasConsulta, MarcadorPlazaMapa } from '../models/plaza.model';
 import type { PaginacionMeta } from '../models/paginacion.model';
@@ -28,7 +30,8 @@ export const Inicio: React.FC = () => {
   // Modal para ver el detalle de una plaza seleccionada
   const [plazaDetalleId, setPlazaDetalleId] = useState<number | null>(null);
 
-  const isMountedRef = useRef<boolean>(true);
+  const { cargando: comprobandoSesion } = useAuth();
+  const token = obtenerToken();
 
   // Comprobar si se especificó una plaza en la URL (ej. tras redirección de inicio de sesión)
   useEffect(() => {
@@ -41,47 +44,44 @@ export const Inicio: React.FC = () => {
     }
   }, [searchParams]);
 
-  const cargarDatos = useCallback(async (filtrosConsulta: FiltrosPlazasConsulta) => {
-    try {
-      setCargando(true);
-      setCargandoMapa(true);
-      setError(null);
-
-      // Carga en paralelo del listado paginado y de todos los marcadores del mapa que cumplen los filtros
-      const [resPlazas, resMarcadores] = await Promise.all([
-        obtenerPlazas(filtrosConsulta),
-        obtenerMarcadoresMapa(filtrosConsulta),
-      ]);
-
-      if (isMountedRef.current) {
-        setPlazas(resPlazas.data);
-        setMetaPaginacion(resPlazas.meta);
-        setMarcadoresMapa(resMarcadores);
-      }
-    } catch (err) {
-      if (isMountedRef.current) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : 'No se pudieron cargar las plazas disponibles.',
-        );
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setCargando(false);
-        setCargandoMapa(false);
-      }
-    }
-  }, []);
-
   useEffect(() => {
-    isMountedRef.current = true;
-    void cargarDatos(filtros);
+    if (comprobandoSesion) return;
+    let activo = true;
+    const cargarDatos = async () => {
+      try {
+        setCargando(true);
+        setCargandoMapa(true);
+        setError(null);
 
-    return () => {
-      isMountedRef.current = false;
+        // Carga en paralelo del listado paginado y de todos los marcadores del mapa que cumplen los filtros
+        const [resPlazas, resMarcadores] = await Promise.all([
+          obtenerPlazas(filtros),
+          obtenerMarcadoresMapa(filtros),
+        ]);
+
+        if (activo) {
+          setPlazas(resPlazas.data);
+          setMetaPaginacion(resPlazas.meta);
+          setMarcadoresMapa(resMarcadores);
+        }
+      } catch (err) {
+        if (activo) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'No se pudieron cargar las plazas disponibles.',
+          );
+        }
+      } finally {
+        if (activo) {
+          setCargando(false);
+          setCargandoMapa(false);
+        }
+      }
     };
-  }, [filtros, cargarDatos]);
+    void cargarDatos();
+    return () => { activo = false; };
+  }, [filtros, comprobandoSesion, token]);
 
   const handleBuscar = (nuevosFiltros: FiltrosPlazasConsulta) => {
     setFiltros({

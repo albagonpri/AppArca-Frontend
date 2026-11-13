@@ -1,6 +1,6 @@
 import { API_URL, manejarRespuesta } from './api';
 import { obtenerToken } from './auth.service';
-import type { Reserva, CrearReservaDto } from '../models/reserva.model';
+import type { Reserva, CrearReservaDto, EstadoReserva } from '../models/reserva.model';
 import type { ParametrosPaginacion, RespuestaPaginada } from '../models/paginacion.model';
 
 function obtenerCabecerasAuth(): Record<string, string> {
@@ -66,4 +66,16 @@ export async function consultarDisponibilidad(id:number, inicio:string, fin:stri
     headers: obtenerCabecerasAuth(), cache:'no-store', signal,
   });
   return manejarRespuesta<{disponible:boolean}>(respuesta);
+}
+
+export async function actualizarEstadoReserva(
+  id: number,
+  estado: EstadoReserva,
+): Promise<Reserva> {
+  const respuesta = await fetch(`${API_URL}/reservas/${id}`, {
+    method: 'PATCH',
+    headers: obtenerCabecerasAuth(),
+    body: JSON.stringify({ estado }),
+  });
+  return manejarRespuesta<Reserva>(respuesta);
 }

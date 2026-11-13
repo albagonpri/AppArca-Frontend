@@ -126,6 +126,7 @@ export const DetallePlaza: React.FC<Props> = ({
   const periodoDisponible = consulta.clave === clave && consulta.disponible;
   const [guardandoReserva, setGuardandoReserva] = useState<boolean>(false);
   const [errorReserva, setErrorReserva] = useState<string | null>(null);
+  const enviandoRef = React.useRef<boolean>(false);
 
 
   useEffect(() => {
@@ -421,7 +422,7 @@ export const DetallePlaza: React.FC<Props> = ({
                   className="btn btn-primary"
                   onClick={handleClicReservar}
                 >
-                  Reservar esta plaza
+                  Solicitar reserva
                 </button>
               )}
 
@@ -624,7 +625,7 @@ export const DetallePlaza: React.FC<Props> = ({
                         className="btn btn-primary btn-sm"
                         disabled={guardandoReserva || !periodoDisponible || vehiculos.length === 0}
                       >
-                        {guardandoReserva ? 'Confirmando...' : 'Confirmar reserva'}
+                        {guardandoReserva ? 'Enviando...' : 'Enviar solicitud'}
                       </button>
                     </div>
                   </>
